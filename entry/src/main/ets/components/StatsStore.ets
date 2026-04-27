@@ -63,4 +63,11 @@ export class StatsStore{
     const current = AppStorage.get<number>(StatsStore.K_TOTAL_WORDS) ?? 0
     AppStorage.set<number>(StatsStore.K_TOTAL_WORDS, current + count)
   }
+
+  static reset(): void {
+    AppStorage.set<number>(StatsStore.K_TOTAL_PLAY_MS, 0)
+    AppStorage.set<number>(StatsStore.K_TOTAL_WORDS, 0)
+    AppStorage.set<number>(StatsStore.K_FASTEST_LEVEL_ID, -1)
+    AppStorage.set<number>(StatsStore.K_FASTEST_LEVEL_MS, -1)
+  }
 }

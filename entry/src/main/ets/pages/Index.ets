@@ -6,6 +6,14 @@ import { WinPage } from './WinPage'
 import { SettingsPage } from './SettingsPage'
 import { StatisticsPage } from './StatisticsPage'
 import { StatsStore } from '../components/StatsStore'
+import { GameState, gameState } from '../viewmodel/GameViewModel'
+
+PersistentStorage.persistProp(MAX_UNLOCKED_KEY, 1)
+PersistentStorage.persistProp(CURRENT_LEVEL_KEY, 1)
+PersistentStorage.persistProp(Settings.SOUND_ENABLED_KEY, true)
+PersistentStorage.persistProp(Settings.IS_DARK_THEME_KEY, true)
+PersistentStorage.persistProp(GameState.TUTORIAL_DONE, false)
+StatsStore.init()
 
 @Entry
 @Component
@@ -13,11 +21,9 @@ struct Index {
   @Provide('navPathStack') navPathStack: NavPathStack = new NavPathStack()
 
   aboutToAppear(): void {
-    PersistentStorage.persistProp(MAX_UNLOCKED_KEY, 1)
-    PersistentStorage.persistProp(CURRENT_LEVEL_KEY, 1)
-    PersistentStorage.persistProp(Settings.SOUND_ENABLED_KEY, true)
-    PersistentStorage.persistProp(Settings.IS_DARK_THEME_KEY, true)
-    StatsStore.init()
+    gameState.maxUnlockedLevel = AppStorage.get<number>(MAX_UNLOCKED_KEY) ?? 1
+    gameState.currentLevelId = AppStorage.get<number>(CURRENT_LEVEL_KEY) ?? 1
+    gameState.isTutorialDone = AppStorage.get<boolean>(GameState.TUTORIAL_DONE) ?? false
   }
 
   @Builder

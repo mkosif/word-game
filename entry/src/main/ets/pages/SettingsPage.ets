@@ -2,6 +2,8 @@ import { AppColors, Settings } from '../common/Constants'
 import { CURRENT_LEVEL_KEY, MAX_UNLOCKED_KEY } from '../model/LevelData'
 import { BackButton } from '../components/BackButton'
 import { PillButton } from '../components/PillButton'
+import { StatsStore } from '../components/StatsStore'
+import { GameState } from '../viewmodel/GameViewModel'
 
 @Component
 export struct SettingsPage {
@@ -143,6 +145,8 @@ export struct SettingsPage {
   private resetProgress(): void {
     AppStorage.set(MAX_UNLOCKED_KEY, 1)
     AppStorage.set(CURRENT_LEVEL_KEY, 1)
+    AppStorage.set<boolean>(GameState.TUTORIAL_DONE, false)
+    StatsStore.reset()
     this.showResetConfirm = false
     this.navPathStack.clear()
   }

@@ -35,12 +35,12 @@ class SoundManager {
       for (let i = 0; i < SOUND_FILES.length; i++) {
         const name = SOUND_FILES[i]
         try {
-          const rawFd = await context.resourceManager.getRawFd(`${name} .mp3`)
+          const rawFd = await context.resourceManager.getRawFd(`${name}.mp3`)
           const id = await this.pool!.load(rawFd.fd, rawFd.offset, rawFd.length)
           this.ids.set(name, id)
-          console.info(`[SoundManager] Loaded ${name} -> id= ${id}`)
+          console.info(`[SoundManager] Loaded ${name} -> id=${id}`)
         } catch (e) {
-          console.warn(`[SoundManager] Failed to load: ${name} +  ` + JSON.stringify(e))
+          console.warn(`[SoundManager] Failed to load: ${name} ` + JSON.stringify(e))
         }
       }
     } catch (e) {

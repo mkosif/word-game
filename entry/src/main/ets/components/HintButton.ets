@@ -18,7 +18,7 @@ export struct HintButton {
         .fill('transparent')
         .stroke(this.isEnabled ? AppColors.PRIMARY_GOLD : AppColors.GRAY_DARK)
         .strokeWidth(2)
-        .opacity(this.isEnabled ? (0.35 + 0.45 + this.glowV) : 0.30)
+        .opacity(this.isEnabled ? (0.55 + 0.45 * this.glowV) : 0.30)
 
       Text('💡')
         .fontSize(16)

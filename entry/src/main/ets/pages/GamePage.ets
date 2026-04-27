@@ -61,7 +61,7 @@ export struct GamePage {
   @State shufflePosX: number = 0
   @State shufflePosY: number = 0
   @State letterPos: number[] = []
-  pressedLetterId: string = ''
+  @State pressedLetterId: string = ''
   @State wrongFlash: boolean = false
   @State wrongShakeX: number = 0
   @State successFlashSlotIndex: number = -1
@@ -234,14 +234,12 @@ export struct GamePage {
   }
 
   findLetterAtPosition(x: number, y: number): LetterItem | null {
+    const thresholdSq = this.TOUCH_THRESHOLD * this.TOUCH_THRESHOLD
     for (let i = 0; i < this.letters.length; i++) {
       const letter = this.letters[i]
-      const centerX = letter.x + this.LETTER_CENTER
-      const centerY = letter.y + this.LETTER_CENTER
-      const dx = x - centerX
-      const dy = y - centerY
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      if (distance < this.TOUCH_THRESHOLD) {
+      const dx = x - (letter.x + this.LETTER_CENTER)
+      const dy = y - (letter.y + this.LETTER_CENTER)
+      if ((dx * dx + dy * dy) < thresholdSq) {
         return letter
       }
     }
@@ -324,13 +322,10 @@ export struct GamePage {
                       .height(this.crosswordCellSize)
                       .margin(1).opacity(0)
                   }
-                }, (cell: CrosswordCell) => `cell_${cell.slotIndex}_${cell.isFound ? 1 :
+                }, (cell: CrosswordCell, ci: number) => `c${ci}_${cell.slotIndex}_${cell.isFound ? 1 :
                   0}_${cell.revealedIndexes.join(',')}`)
               }
-            }, (row: CrosswordRow, ri: number) => {
-              const str = `r${ri.toString()}`
-              return `${str}_${this.foundWordCount.toString()}_${this.hintCount.toString()}`
-            })
+            }, (row: CrosswordRow, ri: number) => `r${ri}`)
 
             Text(this.currentWord)
               .fontSize(18)
@@ -395,7 +390,7 @@ export struct GamePage {
             }
           })
           .hitTestBehavior(HitTestMode.None)
-        }, (item: string, index: number) => item)
+        }, (item: LetterItem) => item.id.toString())
 
         Canvas(this.canvasContext)
           .width(this.CANVAS_SIZE)
@@ -585,6 +580,10 @@ export struct GamePage {
           this.successFlashSlotIndex = -1
         }, 250)
       }
+      if (gameState.isLevelComplete) {
+        const durationMs = Date.now() - this.pageEnterMs
+        StatsStore.trySetFastest(gameState.currentLevelId, durationMs)
+      }
     }
     if (success && isBonusWord) {
       this.showBonusPopupAnimation()
@@ -674,7 +673,7 @@ export struct GamePage {
       if (gameState.isLevelComplete) {
         this.navPathStack.pushPathByName(PageNames.WIN, null)
       }
-    }, GameLayout.SUCCESS_DELAY)
+    }, 1800)
   }
 
   private showSuccessOverlay(): void {

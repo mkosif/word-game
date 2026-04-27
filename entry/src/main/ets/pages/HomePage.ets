@@ -2,7 +2,6 @@ import { AppColors, PageNames } from '../common/Constants'
 import { CURRENT_LEVEL_KEY } from '../model/LevelData'
 import { gameState } from '../viewmodel/GameViewModel'
 import { PillButton } from '../components/PillButton'
-import App from '@system.app'
 
 @Component
 export struct HomePage {

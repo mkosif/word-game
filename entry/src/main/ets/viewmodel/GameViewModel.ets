@@ -17,7 +17,7 @@ function getRandomValue(): number {
     return randomUint32 / 4294967296;
   } catch (error) {
     console.error('Random generation error:', error);
-    return 1
+    return Math.random()
   }
 }
 
@@ -97,11 +97,13 @@ export class GameState {
   showTutorial: boolean = false
 
   constructor() {
-    this.maxUnlockedLevel = AppStorage.get(MAX_UNLOCKED_KEY) as number
-    this.currentLevelId = AppStorage.get(CURRENT_LEVEL_KEY) as number
+    this.maxUnlockedLevel = AppStorage.get<number>(MAX_UNLOCKED_KEY) ?? 1
+    this.currentLevelId = AppStorage.get<number>(CURRENT_LEVEL_KEY) ?? 1
+    this.isTutorialDone = AppStorage.get<boolean>(GameState.TUTORIAL_DONE) ?? false
   }
 
   ensureTutorialOnFirstLaunch(): void {
+    this.isTutorialDone = AppStorage.get<boolean>(GameState.TUTORIAL_DONE) ?? false
     if (!this.isTutorialDone) {
       this.showTutorial = true
     }
@@ -111,6 +113,7 @@ export class GameState {
     this.showTutorial = false
     if (markDone) {
       this.isTutorialDone = true
+      AppStorage.set<boolean>(GameState.TUTORIAL_DONE, true)
     }
   }
 

@@ -38,7 +38,7 @@ function getRandomValue(): number {
     return randomUint32 / 4294967296;
   } catch (error) {
     console.error('Random generation error:', error);
-    return 1
+    return Math.random()
   }
 }
 
@@ -70,31 +70,26 @@ export struct WinPage {
 
   private startStarReveal(): void {
     const ui = this.getUIContext()
-    let scales: number[] = this.starScales.slice()
-    let starScales: number[] = [];
 
     for (let i = 0; i < 5; i++) {
       const idx = i
 
       setTimeout(() => {
-        const s1 = scales.slice()
+        const s1 = this.starScales.slice()
         s1[idx] = 1.3
-        scales = s1
         ui.animateTo({ duration: 150, curve: Curve.EaseIn }, () => {
-          starScales = s1
+          this.starScales = s1
         })
 
         setTimeout(() => {
-          const s2 = scales.slice()
+          const s2 = this.starScales.slice()
           s2[idx] = 1.0
-          scales = s2
           ui.animateTo({ duration: 150, curve: Curve.EaseIn }, () => {
-            starScales = s2
+            this.starScales = s2
           })
         }, 250)
       }, 200 + idx * 250)
     }
-    this.starScales = starScales
   }
 
   aboutToDisappear(): void {

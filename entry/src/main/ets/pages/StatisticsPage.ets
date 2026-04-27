@@ -48,7 +48,7 @@ export struct StatisticsPage {
              .margin({left: 10})
              .margin({top: 5})
          }
-         .width('%100')
+         .width('100%')
           .padding(12)
 
          Column(){
@@ -64,7 +64,7 @@ export struct StatisticsPage {
              .strokeWidth(1)
              .margin({top:8, bottom: 8})
 
-           this.statCard('Fastest Completed Level', this.formatTime(this.fastestLevelId))
+           this.statCard('Fastest Completed Level', this.fastestLevelId > 0 ? `Level ${this.fastestLevelId}` : '-')
            Divider()
              .color('#1C1C1E')
              .strokeWidth(1)
