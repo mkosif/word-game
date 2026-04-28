@@ -14,25 +14,42 @@ export struct SettingsPage {
   @State showResetConfirm: boolean = false
 
   @Builder
+  SettingIcon(icon: string) {
+    Text(icon)
+      .fontSize(14)
+      .fontColor(AppColors.WHITE)
+      .width(26)
+      .height(26)
+      .textAlign(TextAlign.Center)
+      .backgroundColor('#00000033')
+      .borderRadius(13)
+  }
+
+  @Builder
+  ToggleControl(enabled: boolean) {
+    Stack() {
+      Rect().width(38).height(20)
+        .fill(enabled ? AppColors.SUCCESS_GREEN : AppColors.GRAY_DARK).radius(10)
+      Circle().width(16).height(16).fill(AppColors.WHITE)
+        .position({ x: enabled ? 20 : 2, y: 2 })
+    }.width(38).height(20)
+  }
+
+  @Builder
   SoundToggleRow() {
     Row() {
-      Text('\uD83D\uDD14').fontSize(15).width(22).textAlign(TextAlign.Center)
+      this.SettingIcon('\uD83D\uDD14')
 
-      Text('Sound').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 8 })
+      Text('Sound').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 10 })
 
-      Stack() {
-        Rect().width(38).height(20)
-          .fill(this.soundEnabled ? AppColors.SUCCESS_GREEN : AppColors.GRAY_DARK).radius(10)
-        Circle().width(16).height(16).fill(AppColors.WHITE)
-          .position({ x: this.soundEnabled ? 20 : 2, y: 2 })
-      }.width(38).height(20)
+      this.ToggleControl(this.soundEnabled)
     }
     .width('82%')
-    .height(40)
-    .padding({ left: 12, right: 10 })
-    .backgroundColor(AppColors.LETTER_BG)
+    .height(44)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor('#0000002E')
     .borderRadius(12)
-    .margin({ bottom: 6 })
+    .margin({ bottom: 7 })
     .onClick(() => {
       this.soundEnabled = !this.soundEnabled
       AppStorage.set(Settings.SOUND_ENABLED_KEY, this.soundEnabled)
@@ -42,23 +59,18 @@ export struct SettingsPage {
   @Builder
   HapticToggleRow() {
     Row() {
-      Text('\u25CC').fontSize(15).width(22).textAlign(TextAlign.Center).fontColor(AppColors.WHITE)
+      this.SettingIcon('\u25CC')
 
-      Text('Haptics').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 8 })
+      Text('Haptics').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 10 })
 
-      Stack() {
-        Rect().width(38).height(20)
-          .fill(this.hapticEnabled ? AppColors.SUCCESS_GREEN : AppColors.GRAY_DARK).radius(10)
-        Circle().width(16).height(16).fill(AppColors.WHITE)
-          .position({ x: this.hapticEnabled ? 20 : 2, y: 2 })
-      }.width(38).height(20)
+      this.ToggleControl(this.hapticEnabled)
     }
     .width('82%')
-    .height(40)
-    .padding({ left: 12, right: 10 })
-    .backgroundColor(AppColors.LETTER_BG)
+    .height(44)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor('#0000002E')
     .borderRadius(12)
-    .margin({ bottom: 6 })
+    .margin({ bottom: 7 })
     .onClick(() => {
       this.hapticEnabled = !this.hapticEnabled
       AppStorage.set(Settings.HAPTIC_ENABLED_KEY, this.hapticEnabled)
@@ -68,23 +80,18 @@ export struct SettingsPage {
   @Builder
   ThemeToggleRow() {
     Row() {
-      Text(this.isDarkTheme ? '\uD83C\uDF19' : '\u2600').fontSize(15).width(22).textAlign(TextAlign.Center)
+      this.SettingIcon(this.isDarkTheme ? '\uD83C\uDF19' : '\u2600')
 
-      Text('Dark Theme').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 8 })
+      Text('Dark Theme').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 10 })
 
-      Stack() {
-        Rect().width(38).height(20)
-          .fill(this.isDarkTheme ? AppColors.SUCCESS_GREEN : AppColors.GRAY_DARK).radius(10)
-        Circle().width(16).height(16).fill(AppColors.WHITE)
-          .position({ x: this.isDarkTheme ? 20 : 2, y: 2 })
-      }.width(38).height(20)
+      this.ToggleControl(this.isDarkTheme)
     }
     .width('82%')
-    .height(40)
-    .padding({ left: 12, right: 10 })
-    .backgroundColor(AppColors.LETTER_BG)
+    .height(44)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor('#0000002E')
     .borderRadius(12)
-    .margin({ bottom: 6 })
+    .margin({ bottom: 7 })
     .onClick(() => {
       this.isDarkTheme = !this.isDarkTheme
       AppStorage.set(Settings.IS_DARK_THEME_KEY, this.isDarkTheme)
@@ -108,6 +115,13 @@ export struct SettingsPage {
             Text('').width(32)
           }.width('82%').margin({ top: 38, bottom: 12 })
 
+          Text('Preferences')
+            .fontSize(10)
+            .fontColor(AppColors.GRAY_LIGHT)
+            .width('82%')
+            .textAlign(TextAlign.Start)
+            .margin({ bottom: 5 })
+
           this.SoundToggleRow()
 
           this.HapticToggleRow()
@@ -115,17 +129,30 @@ export struct SettingsPage {
           this.ThemeToggleRow()
 
           // Reset progress
+          Text('Progress')
+            .fontSize(10)
+            .fontColor(AppColors.GRAY_LIGHT)
+            .width('82%')
+            .textAlign(TextAlign.Start)
+            .margin({ top: 6, bottom: 5 })
+
           if (this.showResetConfirm) {
             Column() {
-              Text('Are you sure?').fontSize(12).fontColor(AppColors.WHITE).margin({ bottom: 10 })
+              Text('Reset all progress?').fontSize(12).fontColor(AppColors.WHITE).fontWeight(FontWeight.Bold)
+                .margin({ bottom: 3 })
+              Text('Levels, stats, and tutorial state will restart.')
+                .fontSize(9)
+                .fontColor(AppColors.GRAY_LIGHT)
+                .textAlign(TextAlign.Center)
+                .margin({ bottom: 10 })
 
               Row() {
                 Stack() {
-                  PillButton('Yes', '#FF5A5F', AppColors.WHITE, 62, 30)
+                  PillButton('RESET', '#FF5A5F', AppColors.WHITE, 74, 30)
                 }.onClick(() => this.resetProgress())
 
                 Stack() {
-                  PillButton('No', AppColors.GRAY_DARK, AppColors.WHITE, 62, 30)
+                  PillButton('CANCEL', AppColors.GRAY_DARK, AppColors.WHITE, 74, 30)
                 }.margin({ left: 12 }).onClick(() => {
                   this.showResetConfirm = false
                 })
@@ -133,26 +160,48 @@ export struct SettingsPage {
             }
             .width('82%')
             .padding({ top: 12, bottom: 12 })
-            .backgroundColor(AppColors.LETTER_BG)
+            .backgroundColor('#0000002E')
             .borderRadius(12)
             .alignItems(HorizontalAlign.Center)
-            .margin({ bottom: 6 })
+            .margin({ bottom: 8 })
           } else {
-            Text('\u21BA  Reset Progress')
-              .fontSize(13)
-              .fontColor('#FF5A5F')
+            Row() {
+              this.SettingIcon('\u21BA')
+              Text('Reset Progress')
+                .fontSize(13)
+                .fontColor('#FF5A5F')
+                .fontWeight(FontWeight.Bold)
+                .layoutWeight(1)
+                .margin({ left: 10 })
+              Text('!')
+                .fontSize(12)
+                .fontColor('#FF5A5F')
+                .fontWeight(FontWeight.Bold)
+                .width(20)
+                .height(20)
+                .textAlign(TextAlign.Center)
+                .backgroundColor('#FF5A5F22')
+                .borderRadius(10)
+            }
               .width('82%')
-              .height(40)
-              .textAlign(TextAlign.Center)
-              .backgroundColor(AppColors.LETTER_BG)
+              .height(44)
+              .padding({ left: 10, right: 10 })
+              .backgroundColor('#0000002E')
               .borderRadius(12)
-              .margin({ bottom: 6 })
+              .margin({ bottom: 8 })
               .onClick(() => {
                 this.showResetConfirm = true
               })
           }
 
           // About
+          Text('About')
+            .fontSize(10)
+            .fontColor(AppColors.GRAY_LIGHT)
+            .width('82%')
+            .textAlign(TextAlign.Start)
+            .margin({ bottom: 5 })
+
           Column() {
             Text('Words of Wonders').fontSize(12).fontColor(AppColors.PRIMARY_GOLD).fontWeight(FontWeight.Bold)
 

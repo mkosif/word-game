@@ -15,10 +15,16 @@ export struct HintButton {
       Circle()
         .width(30)
         .height(30)
-        .fill('transparent')
+        .fill('#00000033')
         .stroke(this.isEnabled ? AppColors.PRIMARY_GOLD : AppColors.GRAY_DARK)
         .strokeWidth(2)
-        .opacity(this.isEnabled ? (0.55 + 0.45 * this.glowV) : 0.30)
+        .opacity(this.isEnabled ? (0.82 + 0.18 * this.glowV) : 0.38)
+        .shadow({
+          radius: this.isEnabled ? (8 + 6 * this.glowV) : 0,
+          color: this.isEnabled ? '#00000066' : Color.Transparent,
+          offsetX: 0,
+          offsetY: 2
+        })
 
       Text('💡')
         .fontSize(16)
@@ -30,15 +36,13 @@ export struct HintButton {
           .fontSize(10)
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
-          .backgroundColor('#00000066')
+          .width(16)
+          .height(16)
+          .textAlign(TextAlign.Center)
+          .backgroundColor('#111827DD')
           .borderRadius(8)
-          .padding({
-            left: 5,
-            right: 5,
-            top: 1,
-            bottom: 3
-          })
-          .offset({ x: 8, y: -6 })
+          .border({ width: 1, color: '#FFFFFF33' })
+          .position({ x: 22, y: -4 })
       }
     }
     .width(34)

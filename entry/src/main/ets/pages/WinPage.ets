@@ -1,8 +1,7 @@
 import { AppColors, difficultyBgColor } from '../common/Constants'
 import { getTotalLevels } from '../model/LevelData'
 import { gameState } from '../viewmodel/GameViewModel'
-import { BackButton } from '../components/BackButton'
-import { PillButton } from '../components/PillButton'
+import { StatsStore } from '../components/StatsStore'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 
 class ConfettiPiece {
@@ -56,6 +55,8 @@ export struct WinPage {
   @State wordsTotal: number = 0
   @State bonusFound: number = 0
   @State bonusTotal: number = 0
+  @State completionTime: string = '--'
+  @State fastestTime: string = '--'
   private levelScore: number = 0
   private mainStars: number[] = [1, 2, 3]
   private bonusStars: number[] = [4, 5]
@@ -73,6 +74,9 @@ export struct WinPage {
     this.bonusFound = gameState.bonusWordsFound.length
     this.bonusTotal = gameState.currentLevel && gameState.currentLevel.bonusWords ?
       gameState.currentLevel.bonusWords.length : 0
+    this.completionTime = this.formatDuration(StatsStore.getLastCompletedLevelMs())
+    const fastest = StatsStore.getFastest()
+    this.fastestTime = fastest && fastest.levelId === this.currentLevel ? this.formatDuration(fastest.durationMs) : '--'
     this.earnedStars = this.calcStars()
     this.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
     this.startStarReveal()
@@ -111,63 +115,58 @@ export struct WinPage {
     NavDestination() {
       Stack() {
         Column() {
-          Text('WELL DONE!')
-            .fontSize(20)
+          Text('WELL DONE')
+            .fontSize(18)
             .fontColor(AppColors.SUCCESS_GREEN)
             .fontWeight(FontWeight.Bold)
-            .margin({ top: 6, bottom: 4 })
+            .margin({ bottom: 2 })
 
           Row() {
             ForEach(this.mainStars, (starIndex: number) => {
               Text('\u2605')
-                .fontSize(36)
+                .fontSize(31)
                 .fontColor(starIndex <= this.earnedStars ? AppColors.STAR_GOLD : AppColors.GRAY_DARK)
-                .margin(3)
+                .margin(2)
                 .scale({ x: this.starScales[starIndex - 1], y: this.starScales[starIndex - 1] })
             }, (starIndex: number) => `star_ ${starIndex.toString()}`)
-          }.margin({ top: -4, bottom: -22 })
+          }.margin({ bottom: 4 })
 
-          Row() {
-            ForEach(this.bonusStars, (starIndex: number) => {
-              Text('\u2605')
-                .fontSize(36)
-                .fontColor(starIndex <= this.earnedStars ? AppColors.STAR_GOLD : 'transparent')
-                .margin(3)
-                .scale({ x: this.starScales[starIndex - 1], y: this.starScales[starIndex - 1] })
-            }, (starIndex: number) => `star_ ${starIndex.toString()}`)
-          }.margin({ bottom: 6 })
-
-          Text(`Level ${this.currentLevel.toString()}`).fontSize(16).fontColor(AppColors.WHITE)
+          Text(`Level ${this.currentLevel.toString()}`).fontSize(17).fontColor(AppColors.WHITE)
 
           Text('Completed').fontSize(12).fontColor(AppColors.GRAY_LIGHT).margin({ bottom: 6 })
 
           Row() {
             this.StatChip('Score', this.scoreValue.toString())
+            this.StatChip('Time', this.completionTime)
             this.StatChip('Words', `${this.wordsFound.toString()}/${this.wordsTotal.toString()}`)
-            if (this.bonusTotal > 0) {
-              this.StatChip('Bonus', `${this.bonusFound.toString()}/${this.bonusTotal.toString()}`)
-            }
           }
           .justifyContent(FlexAlign.Center)
-          .margin({ bottom: 10 })
+          .margin({ bottom: 8 })
 
           // Buttons
           Column() {
             if (this.currentLevel < getTotalLevels()) {
               Stack() {
-                PillButton('NEXT', AppColors.PRIMARY_GOLD, this.bgColor, 120, 44)
+                this.WinActionButton('NEXT', AppColors.PRIMARY_GOLD, this.bgColor, 116, 36, 16)
               }.onClick(() => {
                 gameState.loadLevel(this.currentLevel + 1)
                 this.navPathStack.pop()
-              }).margin({ bottom: 8 })
+              })
+            } else {
+              Stack() {
+                this.WinActionButton('HOME', AppColors.PRIMARY_GOLD, this.bgColor, 116, 36, 16)
+              }.onClick(() => {
+                this.navPathStack.clear()
+              })
             }
           }
         }
-        .justifyContent(FlexAlign.Center)
-        .padding({ top: 20 })
+        .justifyContent(FlexAlign.Start)
+        .padding({ left: 0, right: 0 })
         .alignItems(HorizontalAlign.Center)
-        .width('100%')
-        .height('100%')
+        .width(190)
+        .height(190)
+        .position({ x: 21, y: 26 })
 
         if (this.showConfetti) {
           Canvas(this.confettiCtx)
@@ -181,11 +180,6 @@ export struct WinPage {
         }
       }.width('100%').height('100%').backgroundColor(this.bgColor)
 
-      BackButton({
-        btnSize: 36, onBack: () => {
-          this.navPathStack.clear()
-        }
-      }).position({ x: 24, y: 4 })
     }.hideTitleBar(true).backgroundColor(this.bgColor)
   }
 
@@ -193,20 +187,50 @@ export struct WinPage {
   private StatChip(label: string, value: string) {
     Column() {
       Text(value)
-        .fontSize(13)
+        .fontSize(14)
         .fontColor(AppColors.WHITE)
         .fontWeight(FontWeight.Bold)
       Text(label)
-        .fontSize(8)
+        .fontSize(9)
         .fontColor(AppColors.GRAY_LIGHT)
     }
-    .width(54)
-    .height(34)
+    .width(55)
+    .height(35)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .backgroundColor('#00000040')
     .borderRadius(8)
-    .margin({ left: 3, right: 3 })
+    .margin({ left: 2, right: 2 })
+  }
+
+  @Builder
+  private WinActionButton(text: string, fillColor: string, textColor: string, width: number, height: number,
+    fontSize: number) {
+    Stack() {
+      Rect()
+        .width(width)
+        .height(height)
+        .fill(fillColor)
+        .radius(height / 2)
+      Text(text)
+        .fontSize(fontSize)
+        .fontColor(textColor)
+        .fontWeight(FontWeight.Bold)
+    }
+  }
+
+  private formatDuration(durationMs: number): string {
+    if (durationMs < 0) {
+      return '--'
+    }
+    const totalSeconds = Math.max(0, Math.floor(durationMs / 1000))
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    if (minutes <= 0) {
+      return `${seconds.toString()}s`
+    }
+    const secText = seconds < 10 ? `0${seconds.toString()}` : seconds.toString()
+    return `${minutes.toString()}:${secText}`
   }
 
   private startConfetti(): void {

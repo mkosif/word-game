@@ -87,6 +87,7 @@ export struct GamePage {
   @State crosswordCellSize: number = 20
   @State crosswordFontSize: number = 13
   @State foundWordCount: number = 0
+  @State crosswordRevision: number = 0
   private pageEnterMs: number = 0
   private canvasSettings: RenderingContextSettings = new RenderingContextSettings(true)
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.canvasSettings)
@@ -171,6 +172,7 @@ export struct GamePage {
     }
     this.foundWordCount = fc
     this.crosswordRows = this.buildCrosswordGrid()
+    this.crosswordRevision += 1
     this.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
   }
 
@@ -354,29 +356,33 @@ export struct GamePage {
               Row() {
                 ForEach(row.cells, (cell: CrosswordCell, ci: number) => {
                   if (cell.isActive) {
-                    Text(cell.isFound ? cell.letter : (cell.isLetterRevealed() ? cell.letter : ''))
+                    Stack({ alignContent: Alignment.Center }) {
+                      Text(this.crosswordCellText(cell))
+                        .width(this.crosswordCellSize)
+                        .height(this.crosswordCellSize)
+                        .fontSize(this.crosswordFontSize)
+                        .fontColor(this.crosswordCellTextColor(cell))
+                        .fontWeight(FontWeight.Bold)
+                        .textAlign(TextAlign.Center)
+                    }
                       .width(this.crosswordCellSize)
                       .height(this.crosswordCellSize)
-                      .fontSize(this.crosswordFontSize)
-                      .fontColor(AppColors.WHITE)
-                      .fontWeight(FontWeight.Bold)
-                      .textAlign(TextAlign.Center)
                       .backgroundColor(this.crosswordCellBg(cell))
                       .border({
-                        width: this.isHintFlashCell(cell) ? 2 : 0,
-                        color: this.isHintFlashCell(cell) ? AppColors.STAR_GOLD : Color.Transparent
+                        width: this.crosswordCellBorderWidth(cell),
+                        color: this.crosswordCellBorderColor(cell)
                       })
                       .scale({
-                        x: this.isHintFlashCell(cell) ? 1.12 : 1,
-                        y: this.isHintFlashCell(cell) ? 1.12 : 1
+                        x: this.crosswordCellScale(cell),
+                        y: this.crosswordCellScale(cell)
                       })
                       .shadow({
-                        radius: this.isHintFlashCell(cell) ? 14 : 0,
-                        color: this.isHintFlashCell(cell) ? AppColors.STAR_GOLD : Color.Transparent,
+                        radius: this.crosswordCellShadowRadius(cell),
+                        color: this.crosswordCellShadowColor(cell),
                         offsetX: 0,
                         offsetY: 0
                       })
-                      .animation({ duration: (this.successFlashOn || this.wrongFlash || this.hintFlashOn) ? 160 : 0, curve: Curve.EaseOut })
+                      .animation({ duration: this.crosswordCellAnimDuration(), curve: Curve.EaseOut })
                       .borderRadius(3)
                       .margin(1)
                   } else {
@@ -385,10 +391,9 @@ export struct GamePage {
                       .height(this.crosswordCellSize)
                       .margin(1).opacity(0)
                   }
-                }, (cell: CrosswordCell, ci: number) => `c${ci}_${cell.slotIndex}_${cell.isFound ? 1 :
-                  0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${cell.revealedIndexes.join(',')}`)
+                }, (cell: CrosswordCell) => this.crosswordCellKey(cell))
               }
-            }, (row: CrosswordRow, ri: number) => `r${ri}`)
+            }, (row: CrosswordRow, ri: number) => `r${this.crosswordRevision}_${ri}`)
 
             Text(this.currentWord)
               .fontSize(18)
@@ -505,24 +510,7 @@ export struct GamePage {
         })
         .position({ x: this.shufflePosX, y: this.shufflePosY })
         .onClick(() => {
-          gameState.shuffleLetters()
-          soundManager.play(SoundNames.SHUFFLE)
-          hapticManager.play(HapticNames.SHUFFLE)
-          this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE,
-            this.CANVAS_SIZE) // Sync this.letters for correct touch detection (p0x/y still hold old positions)
-          const newLetters: LetterItem[] = []
-          for (let i = 0; i < gameState.letters.length; i++) {
-            newLetters.push(gameState.letters[i].clone())
-          }
-          this.letters = newLetters // Animate from old positions (p0x/y) to new positions
-          this.getUIContext().animateTo({ duration: 350, curve: Curve.EaseInOut }, () => {
-            const newPos: number[] = []
-            for (let i = 0; i < gameState.letters.length; i++) {
-              newPos.push(gameState.letters[i].x)
-              newPos.push(gameState.letters[i].y)
-            }
-            this.letterPos = newPos
-          })
+          this.shuffleLetters()
         })
 
         if (this.showSuccess) { // Layer 8: Success overlay
@@ -704,6 +692,7 @@ export struct GamePage {
       }, 420)
       if (gameState.isLevelComplete) {
         const durationMs = Date.now() - this.pageEnterMs
+        StatsStore.setLastCompletedLevelMs(durationMs)
         StatsStore.trySetFastest(gameState.currentLevelId, durationMs)
       }
     }
@@ -804,6 +793,27 @@ export struct GamePage {
         this.navPathStack.pushPathByName(PageNames.WIN, null)
       }
     }, 1800)
+  }
+
+  private shuffleLetters(): void {
+    gameState.shuffleLetters()
+    soundManager.play(SoundNames.SHUFFLE)
+    hapticManager.play(HapticNames.SHUFFLE)
+    this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE,
+      this.CANVAS_SIZE) // Sync this.letters for correct touch detection (p0x/y still hold old positions)
+    const newLetters: LetterItem[] = []
+    for (let i = 0; i < gameState.letters.length; i++) {
+      newLetters.push(gameState.letters[i].clone())
+    }
+    this.letters = newLetters // Animate from old positions (p0x/y) to new positions
+    this.getUIContext().animateTo({ duration: 350, curve: Curve.EaseInOut }, () => {
+      const newPos: number[] = []
+      for (let i = 0; i < gameState.letters.length; i++) {
+        newPos.push(gameState.letters[i].x)
+        newPos.push(gameState.letters[i].y)
+      }
+      this.letterPos = newPos
+    })
   }
 
   @Builder
@@ -957,6 +967,39 @@ export struct GamePage {
     return this.hintFlashOn && this.hintFlashKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
   }
 
+  private crosswordCellKey(cell: CrosswordCell): string {
+    return `cell_${this.crosswordRevision}_${cell.row}_${cell.col}_${cell.slotIndex}_${cell.letter}_${this.crosswordCellText(cell)}_${cell.isFound ? 1 :
+      0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${cell.revealedIndexes.join(',')}`
+  }
+
+  private crosswordCellText(cell: CrosswordCell): string {
+    if (cell.isFound || this.isCellInFoundSlot(cell) || cell.isLetterRevealed() || this.isHintFlashCell(cell)) {
+      return cell.letter
+    }
+    return ''
+  }
+
+  private crosswordCellTextColor(cell: CrosswordCell): ResourceColor {
+    return this.isHintFlashCell(cell) ? AppColors.BACKGROUND_DARK : AppColors.WHITE
+  }
+
+  private isCellInFoundSlot(cell: CrosswordCell): boolean {
+    for (let s = 0; s < this.wordSlots.length; s++) {
+      const slot = this.wordSlots[s]
+      if (!slot.isFound) {
+        continue
+      }
+      for (let li = 0; li < slot.word.length; li++) {
+        const r = slot.dir === 'H' ? slot.row : slot.row + li
+        const c = slot.dir === 'H' ? slot.col + li : slot.col
+        if (cell.row === r && cell.col === c) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
   private crosswordCellBg(cell: CrosswordCell): string {
     if (this.isHintFlashCell(cell)) {
       return AppColors.PRIMARY_GOLD
@@ -967,13 +1010,58 @@ export struct GamePage {
     if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
       return '#1DB954'
     }
-    if (cell.isFound) {
+    if (cell.isFound || this.isCellInFoundSlot(cell)) {
       return AppColors.SUCCESS_GREEN
     }
     if (cell.isLetterRevealed()) {
       return AppColors.WORD_SLOT_FILLED
     }
     return AppColors.WORD_SLOT_EMPTY
+  }
+
+  private crosswordCellBorderWidth(cell: CrosswordCell): number {
+    if (this.isHintFlashCell(cell)) {
+      return 2
+    }
+    return cell.isLetterRevealed() && !cell.isFound ? 1 : 0
+  }
+
+  private crosswordCellBorderColor(cell: CrosswordCell): ResourceColor {
+    if (this.isHintFlashCell(cell)) {
+      return AppColors.STAR_GOLD
+    }
+    if (cell.isLetterRevealed() && !cell.isFound) {
+      return '#FFFFFF33'
+    }
+    return Color.Transparent
+  }
+
+  private crosswordCellScale(cell: CrosswordCell): number {
+    return this.isHintFlashCell(cell) ? 1.12 : 1
+  }
+
+  private crosswordCellShadowRadius(cell: CrosswordCell): number {
+    if (this.isHintFlashCell(cell)) {
+      return 14
+    }
+    if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
+      return 8
+    }
+    return 0
+  }
+
+  private crosswordCellShadowColor(cell: CrosswordCell): ResourceColor {
+    if (this.isHintFlashCell(cell)) {
+      return AppColors.STAR_GOLD
+    }
+    if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
+      return AppColors.SUCCESS_GREEN
+    }
+    return Color.Transparent
+  }
+
+  private crosswordCellAnimDuration(): number {
+    return (this.successFlashOn || this.wrongFlash || this.hintFlashOn) ? 160 : 0
   }
 
   private isFeedbackLetter(id: number): boolean {

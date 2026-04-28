@@ -1,6 +1,6 @@
 
 import { AppColors } from '../common/Constants'
-import { BackButton } from '../components/BackButton'
+import { GameIconButton } from '../components/GameIconButton'
 import { StatsStore } from '../components/StatsStore'
 
 @Component
@@ -36,77 +36,106 @@ export struct StatisticsPage {
 
   build() {
     NavDestination() {
-      Scroll(){
-       Column() {
-          Row(){
-            BackButton({btnSize: 24})
-              .margin({right: 5, top: 2})
+      Scroll() {
+        Column() {
+          Row() {
+            GameIconButton({
+              icon: '\u2190',
+              buttonSize: 32,
+              strokeColor: AppColors.WHITE,
+              onTap: () => {
+                this.navPathStack.pop()
+              }
+            })
 
-           Text('Statistics')
-             .fontSize(20)
-             .fontWeight(FontWeight.Bold)
-             .margin({left: 10})
-             .margin({top: 5})
-         }
-         .width('100%')
-          .padding(12)
+            Text('Statistics')
+              .fontSize(17)
+              .fontColor(AppColors.PRIMARY_GOLD)
+              .fontWeight(FontWeight.Bold)
+              .layoutWeight(1)
+              .textAlign(TextAlign.Center)
 
-         Column(){
-           this.statCard('Total Play Time', this.formatTime(this.totalPlayMs))
-           Divider()
-             .color('#1C1C1E')
-             .strokeWidth(1)
-             .margin({top:8, bottom: 8})
-
-           this.statCard('Total Words Found', `${this.totalWords}`)
-           Divider()
-             .color('#1C1C1E')
-             .strokeWidth(1)
-             .margin({top:8, bottom: 8})
-
-           this.statCard('Fastest Completed Level', this.fastestLevelId > 0 ? `Level ${this.fastestLevelId}` : '-')
-           Divider()
-             .color('#1C1C1E')
-             .strokeWidth(1)
-             .margin({top:8, bottom: 8})
-
-           if(this.fastestLevelId > 0){
-              this.statCard('Fastest Time', this.formatTime(this.fastestMs))
-           } else {
-             this.statCard('Fastest Time', '-')
-            }
+            Text('').width(36)
           }
-          .width('100%')
-          .padding(12)
-       }
-       .width('100%')
-       .backgroundColor(AppColors.BACKGROUND_DARK)
+          .width('82%')
+          .margin({ top: 38, bottom: 14 })
+
+          Row() {
+            this.SummaryTile('Words', `${this.totalWords}`)
+            this.SummaryTile('Play', this.formatTime(this.totalPlayMs))
+          }
+          .width('82%')
+          .justifyContent(FlexAlign.SpaceBetween)
+          .margin({ bottom: 10 })
+
+          Text('Records')
+            .fontSize(10)
+            .fontColor(AppColors.GRAY_LIGHT)
+            .width('82%')
+            .textAlign(TextAlign.Start)
+            .margin({ bottom: 5 })
+
+          Column() {
+            this.StatRow('Fastest Level', this.fastestLevelId > 0 ? `Level ${this.fastestLevelId}` : '-')
+            this.StatRow('Fastest Time', this.fastestLevelId > 0 ? this.formatTime(this.fastestMs) : '-')
+          }
+          .width('82%')
+          .padding({ top: 6, bottom: 6 })
+          .backgroundColor('#0000002E')
+          .borderRadius(12)
+
+          Text('').height(40)
         }
+        .alignItems(HorizontalAlign.Center)
         .width('100%')
-        .height('100%')
-        .scrollBar(BarState.Auto)
-        .edgeEffect(EdgeEffect.None)
         .backgroundColor(AppColors.BACKGROUND_DARK)
+      }
+      .width('100%')
+      .height('100%')
+      .scrollBar(BarState.Auto)
+      .edgeEffect(EdgeEffect.None)
+      .backgroundColor(AppColors.BACKGROUND_DARK)
     }
     .hideTitleBar(true)
   }
 
   @Builder
-  private statCard(title: string, value:string){
-    Column(){
+  private SummaryTile(label: string, value: string) {
+    Column() {
+      Text(value)
+        .fontSize(18)
+        .fontColor(AppColors.WHITE)
+        .fontWeight(FontWeight.Bold)
+
+      Text(label)
+        .fontSize(9)
+        .fontColor(AppColors.GRAY_LIGHT)
+        .margin({ top: 2 })
+    }
+    .width(84)
+    .height(56)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor('#0000002E')
+    .borderRadius(12)
+  }
+
+  @Builder
+  private StatRow(title: string, value: string) {
+    Row() {
       Text(title)
-        .fontSize(14)
-        .opacity(0.7)
+        .fontSize(12)
+        .fontColor(AppColors.GRAY_LIGHT)
+        .layoutWeight(1)
 
       Text(value)
-        .fontSize(20)
+        .fontSize(13)
+        .fontColor(AppColors.WHITE)
         .fontWeight(FontWeight.Bold)
-        .margin({top: 6})
     }
     .width('100%')
-    .padding(12)
-    .borderRadius(12)
-    .backgroundColor('#1C1C1E')
+    .height(36)
+    .padding({ left: 10, right: 10 })
   }
 }
 

@@ -8,12 +8,14 @@ export class StatsStore{
   private static readonly K_TOTAL_WORDS: string = 'totalWordsFound'
   private static readonly K_FASTEST_LEVEL_ID: string = 'fastestLevelId'
   private static readonly K_FASTEST_LEVEL_MS: string ='fastestLevelMs'
+  private static readonly K_LAST_COMPLETED_LEVEL_MS: string = 'lastCompletedLevelMs'
 
   static init():void{
     PersistentStorage.persistProp(StatsStore.K_TOTAL_PLAY_MS, 0)
     PersistentStorage.persistProp(StatsStore.K_TOTAL_WORDS, 0)
     PersistentStorage.persistProp(StatsStore.K_FASTEST_LEVEL_ID, -1)
     PersistentStorage.persistProp(StatsStore.K_FASTEST_LEVEL_MS, -1)
+    PersistentStorage.persistProp(StatsStore.K_LAST_COMPLETED_LEVEL_MS, -1)
   }
 
   static getTotalPlayTimeMs(): number {
@@ -56,6 +58,14 @@ export class StatsStore{
     return false
   }
 
+  static setLastCompletedLevelMs(durationMs: number): void {
+    AppStorage.set<number>(StatsStore.K_LAST_COMPLETED_LEVEL_MS, durationMs)
+  }
+
+  static getLastCompletedLevelMs(): number {
+    return AppStorage.get<number>(StatsStore.K_LAST_COMPLETED_LEVEL_MS) ?? -1
+  }
+
   static addWordsFound(count: number): void{
     if(count <= 0) {
       return
@@ -69,5 +79,6 @@ export class StatsStore{
     AppStorage.set<number>(StatsStore.K_TOTAL_WORDS, 0)
     AppStorage.set<number>(StatsStore.K_FASTEST_LEVEL_ID, -1)
     AppStorage.set<number>(StatsStore.K_FASTEST_LEVEL_MS, -1)
+    AppStorage.set<number>(StatsStore.K_LAST_COMPLETED_LEVEL_MS, -1)
   }
 }

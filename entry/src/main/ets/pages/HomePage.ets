@@ -2,6 +2,7 @@ import { AppColors, PageNames } from '../common/Constants'
 import { CURRENT_LEVEL_KEY } from '../model/LevelData'
 import { gameState } from '../viewmodel/GameViewModel'
 import { PillButton } from '../components/PillButton'
+import { GameIconButton } from '../components/GameIconButton'
 
 @Component
 export struct HomePage {
@@ -15,37 +16,29 @@ export struct HomePage {
 
       Text('Game').fontSize(14).fontColor(AppColors.WHITE).fontWeight(FontWeight.Medium).margin({ bottom: 10 })
 
-      // Logo centered, gear balanced by invisible spacer on the left
       Row() {
-        Text('📊')
-          .fontSize(16)
-          .fontColor(AppColors.WHITE)
-          .width(34)
-          .height(34)
-          .textAlign(TextAlign.Center)
-          .backgroundColor(AppColors.LETTER_BG)
-          .borderRadius(17)
-          .translate({x: 0, y: 0})
-          .onClick(() => {
+        GameIconButton({
+          icon: '\u25A3',
+          buttonSize: 34,
+          strokeColor: AppColors.WHITE,
+          onTap: () => {
             this.navPathStack.pushPathByName(PageNames.STATISTICS, null)
-          })
+          }
+        })
 
         Text('').width(44).height(34)
 
-        Image($r('app.media.logo')).width(90).height(90).objectFit(ImageFit.Contain).translate({x: -16, y: 0}).backgroundColor(Color.Transparent)
+        Image($r('app.media.logo')).width(90).height(90).objectFit(ImageFit.Contain).translate({ x: -16, y: 0 })
+          .backgroundColor(Color.Transparent)
 
-        Text('\u2699')
-          .fontSize(20)
-          .fontColor(AppColors.WHITE)
-          .width(34)
-          .height(34)
-          .textAlign(TextAlign.Center)
-          .backgroundColor(AppColors.LETTER_BG)
-          .borderRadius(17)
-          .margin({ left: 10 })
-          .onClick(() => {
+        GameIconButton({
+          icon: '\u2699',
+          buttonSize: 34,
+          strokeColor: AppColors.WHITE,
+          onTap: () => {
             this.navPathStack.pushPathByName(PageNames.SETTINGS, null)
-          })
+          }
+        }).margin({ left: 10 })
       }.alignItems(VerticalAlign.Center).margin({ bottom: 12 })
 
       Stack() {
