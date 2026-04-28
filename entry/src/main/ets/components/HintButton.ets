@@ -5,9 +5,9 @@ export struct HintButton {
   @Prop isEnabled: boolean = true
   @Prop count: number = 3
   onTap?: () => void
-  @Prop private scaleV: number = 1.0
-  @Prop private glowV: number = 0.0
-  @Prop private rotV: number = 0.0
+  @State private scaleV: number = 1.0
+  @State private glowV: number = 0.0
+  @State private rotV: number = 0.0
   private animSeq: number = 0
 
   build() {
@@ -75,7 +75,7 @@ export struct HintButton {
       }
       this.getUIContext().animateTo({ duration: 60 }, () => {
         this.rotV = 0
-      },)
+      })
     }, 70)
 
     setTimeout(() => {

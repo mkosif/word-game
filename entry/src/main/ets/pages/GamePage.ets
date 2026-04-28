@@ -4,6 +4,7 @@ import { HintButton } from '../components/HintButton'
 import { BackButton } from '../components/BackButton'
 import { soundManager, SoundNames } from '../common/SoundManager'
 import { StatsStore } from '../components/StatsStore'
+import { window } from '@kit.ArkUI'
 
 class LinePoint {
   x: number = 0
@@ -21,9 +22,13 @@ class CrosswordCell {
   letterIndex: number = -1
   letter: string = ''
   isFound: boolean = false
+  isRevealed: boolean = false
   revealedIndexes: number[] = []
 
   isLetterRevealed(): boolean {
+    if (this.isRevealed) {
+      return true
+    }
     for (let i = 0; i < this.revealedIndexes.length; i++) {
       if (this.revealedIndexes[i] === this.letterIndex) {
         return true
@@ -70,6 +75,8 @@ export struct GamePage {
   @State bonusWordFound: string = ''
   @State bonusPopupScale: number = 0
   @State bonusPopupOpacity: number = 0
+  @State lineFeedback: string = 'normal'
+  @State feedbackLetterIds: number[] = []
   @State bgColor: string = AppColors.BACKGROUND_DARK
   @State crosswordRows: CrosswordRow[] = []
   @State crosswordCellSize: number = 20
@@ -80,9 +87,11 @@ export struct GamePage {
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.canvasSettings)
   private bonusCanvasSettings: RenderingContextSettings = new RenderingContextSettings(true)
   private bonusCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.bonusCanvasSettings)
+  private ignoreCurrentPan: boolean = false
+  private lastHintTapMs: number = 0
   private readonly LETTER_CENTER: number = GameLayout.LETTER_SIZE / 2
   private readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
-  private readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD
+  private readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD + 4
 
   get isTutorialDone(): boolean {
     return AppStorage.get<boolean>(GameState.TUTORIAL_DONE) ?? false
@@ -93,14 +102,31 @@ export struct GamePage {
   }
 
   aboutToAppear(): void {
+    this.setGestureBackEnabled(false)
     gameState.ensureTutorialOnFirstLaunch()
     this.pageEnterMs = Date.now()
     this.refreshState()
   }
 
   aboutToDisappear(): void {
+    this.setGestureBackEnabled(true)
     const delta = Date.now() - this.pageEnterMs
     StatsStore.addPlayTimeMs(delta)
+  }
+
+  private setGestureBackEnabled(enabled: boolean): void {
+    const context = this.getUIContext().getHostContext()
+    if (!context) {
+      console.warn('[GamePage] host context unavailable')
+      return
+    }
+    window.getLastWindow(context).then((mainWindow: window.Window) => {
+      mainWindow.setGestureBackEnabled(enabled).catch((error: Error) => {
+        console.warn(`[GamePage] setGestureBackEnabled(${enabled}) failed: ${JSON.stringify(error)}`)
+      })
+    }).catch((error: Error) => {
+      console.warn(`[GamePage] getLastWindow failed: ${JSON.stringify(error)}`)
+    })
   }
 
   refreshState(): void {
@@ -194,7 +220,11 @@ export struct GamePage {
     }
     this.canvasContext.lineCap = 'round'
     this.canvasContext.lineJoin = 'round'
-    if (this.linePoints.length > 1) {
+    if (this.lineFeedback === 'wrong') {
+      this.canvasContext.strokeStyle = '#FF5252'
+    } else if (this.lineFeedback === 'success') {
+      this.canvasContext.strokeStyle = AppColors.LINE_GREEN
+    } else if (this.linePoints.length > 1) {
       const first = this.linePoints[0]
       const last = this.linePoints[this.linePoints.length - 1]
       const gradient = this.canvasContext.createLinearGradient(first.x, first.y, last.x, last.y)
@@ -207,27 +237,36 @@ export struct GamePage {
     const minW = 2
     const maxW = 5
     const totalSegments = Math.max(1, this.linePoints.length - 1)
-    this.canvasContext.shadowColor = '#FFD36A'
-    this.canvasContext.shadowBlur = 10
+    this.canvasContext.shadowColor = this.lineFeedback === 'wrong' ? '#FF5252' :
+      (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : '#FFD36A')
+    this.canvasContext.shadowBlur = this.lineFeedback === 'normal' ? 10 : 14
 
     for (let i = 1; i < this.linePoints.length; i++) {
       const p0 = this.linePoints[i - 1]
       const p1 = this.linePoints[i]
       const t = (i - 1) / totalSegments
-      const w = minW + (maxW - minW) * Math.sin(Math.PI * t)
+      const w = (this.lineFeedback === 'normal' ? minW : 4) + (maxW - minW) * Math.sin(Math.PI * t)
       this.canvasContext.lineWidth = w
       this.canvasContext.beginPath()
       this.canvasContext.moveTo(p0.x, p0.y)
       this.canvasContext.lineTo(p1.x, p1.y)
       this.canvasContext.stroke()
     }
-    if (this.isDragging && this.linePoints.length > 0) {
+    if (this.isDragging && this.lineFeedback === 'normal' && this.linePoints.length > 0) {
       const last = this.linePoints[this.linePoints.length - 1]
       this.canvasContext.lineWidth = minW
       this.canvasContext.beginPath()
       this.canvasContext.moveTo(last.x, last.y)
       this.canvasContext.lineTo(this.currentTouchX, this.currentTouchY)
       this.canvasContext.stroke()
+    }
+    for (let i = 0; i < this.linePoints.length; i++) {
+      const point = this.linePoints[i]
+      this.canvasContext.beginPath()
+      this.canvasContext.arc(point.x, point.y, this.lineFeedback === 'normal' ? 3 : 4, 0, 2 * Math.PI)
+      this.canvasContext.fillStyle = this.lineFeedback === 'wrong' ? '#FF5252' :
+        (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : '#FFD36A')
+      this.canvasContext.fill()
     }
     this.canvasContext.shadowBlur = 0
     this.canvasContext.shadowColor = 'transparent'
@@ -247,6 +286,8 @@ export struct GamePage {
   }
 
   onTouchStart(x: number, y: number): void {
+    this.lineFeedback = 'normal'
+    this.feedbackLetterIds = []
     this.isDragging = true
     this.currentTouchX = x
     this.currentTouchY = y
@@ -275,6 +316,7 @@ export struct GamePage {
         const selected = gameState.selectedLetters
         if (selected.length >= 2 && selected[selected.length - 2].id === letter.id) {
           gameState.undoLastLetter()
+          soundManager.play(SoundNames.LETTER_SELECT)
           this.refreshState()
         }
       }
@@ -312,7 +354,8 @@ export struct GamePage {
                       .textAlign(TextAlign.Center)
                       .backgroundColor(this.wrongFlash ? '#600020' :
                         (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex ? '#1DB954' :
-                          (cell.isFound ? AppColors.SUCCESS_GREEN : AppColors.WORD_SLOT_EMPTY)))
+                          (cell.isFound ? AppColors.SUCCESS_GREEN :
+                            (cell.isLetterRevealed() ? AppColors.WORD_SLOT_FILLED : AppColors.WORD_SLOT_EMPTY))))
                       .animation({ duration: (this.successFlashOn || this.wrongFlash) ? 160 : 0, curve: Curve.EaseOut })
                       .borderRadius(3)
                       .margin(1)
@@ -323,7 +366,7 @@ export struct GamePage {
                       .margin(1).opacity(0)
                   }
                 }, (cell: CrosswordCell, ci: number) => `c${ci}_${cell.slotIndex}_${cell.isFound ? 1 :
-                  0}_${cell.revealedIndexes.join(',')}`)
+                  0}_${cell.isRevealed ? 1 : 0}_${cell.revealedIndexes.join(',')}`)
               }
             }, (row: CrosswordRow, ri: number) => `r${ri}`)
 
@@ -356,15 +399,16 @@ export struct GamePage {
               .width(GameLayout.LETTER_SIZE - 5)
               .height(GameLayout.LETTER_SIZE - 5)
               .fill('transparent')
-              .stroke(item.isSelected ? AppColors.PRIMARY_GOLD : AppColors.WHITE)
-              .strokeWidth(2)
+              .stroke(this.letterStrokeColor(item))
+              .strokeWidth(item.isSelected || this.isFeedbackLetter(item.id) ? 3 : 2)
+              .opacity(item.isSelected || this.isFeedbackLetter(item.id) ? 1 : 0.88)
               .scale({
-                x: this.pressedLetterId === item.id.toString() ? 1.15 : 1.0,
-                y: this.pressedLetterId === item.id.toString() ? 1.15 : 1.0
+                x: this.letterScale(item),
+                y: this.letterScale(item)
               })
               .shadow({
-                radius: this.pressedLetterId === item.id.toString() ? 1.15 : 1.0,
-                color: this.pressedLetterId === item.id.toString() ? '#FFD36A' : '#000000',
+                radius: item.isSelected || this.isFeedbackLetter(item.id) ? 12 : 1,
+                color: this.letterGlowColor(item),
                 offsetX: 0,
                 offsetY: 0
               })
@@ -372,7 +416,7 @@ export struct GamePage {
 
             Text(item.letter)
               .fontSize(20)
-              .fontColor(item.isSelected ? AppColors.PRIMARY_GOLD : AppColors.WHITE)
+              .fontColor(this.letterTextColor(item))
               .fontWeight(FontWeight.Bold)
           }
           .width(GameLayout.LETTER_SIZE)
@@ -402,9 +446,8 @@ export struct GamePage {
         BackButton({ btnSize: 28, bgColor: '#00000066' }).position({ x: 66, y: 18 }) // Layer 4: Back button
         Stack() { // Layer 5: Hint button
           HintButton({
-            isEnabled: gameState.hintCount > 0, count: this.hintCount, onTap: () => {
-              gameState.useHint()
-              this.refreshState()
+            isEnabled: this.hintCount > 0, count: this.hintCount, onTap: () => {
+              this.handleHintTap()
             }
           })
         }.position({ x: this.hintPosX, y: this.hintPosY })
@@ -533,42 +576,70 @@ export struct GamePage {
       .gesture(PanGesture({ fingers: 1, distance: 1 }).onActionStart((event: GestureEvent) => {
         if (event.fingerList.length > 0) {
           const finger = event.fingerList[0]
+          if (this.isHintPoint(finger.localX, finger.localY)) {
+            this.ignoreCurrentPan = true
+            this.handleHintTap()
+            return
+          }
+          this.ignoreCurrentPan = false
           this.updatePressedByPos(finger.localX, finger.localY)
           this.onTouchStart(finger.localX, finger.localY)
         }
       }).onActionUpdate((event: GestureEvent) => {
+        if (this.ignoreCurrentPan) {
+          return
+        }
         if (event.fingerList.length > 0) {
           const finger = event.fingerList[0]
           this.updatePressedByPos(finger.localX, finger.localY)
           this.onTouchMove(finger.localX, finger.localY)
         }
       }).onActionEnd(() => {
+        if (this.ignoreCurrentPan) {
+          this.ignoreCurrentPan = false
+          return
+        }
         this.pressedLetterId = ''
         this.onTouchEnd()
       }))
-    }.hideTitleBar(true).backgroundColor(AppColors.BACKGROUND_DARK).onShown(() => {
+      .parallelGesture(TapGesture({ count: 1, fingers: 1 }).onAction((event: GestureEvent) => {
+        if (event.fingerList.length > 0) {
+          const finger = event.fingerList[0]
+          if (this.isHintPoint(finger.localX, finger.localY)) {
+            this.handleHintTap()
+          }
+        }
+      }))
+    }.hideTitleBar(true).backgroundColor(AppColors.BACKGROUND_DARK).onBackPressed(() => true).onShown(() => {
       this.refreshState()
     })
   }
 
-  submitWord(): void { // Clear canvas
-    this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
-    this.linePoints = []
+  submitWord(): void {
+    const submittedPoints = this.linePoints.slice()
+    const submittedLetterIds = gameState.selectedLetters.map((letter: LetterItem) => letter.id)
     if (this.currentWord.length < GameLayout.MIN_WORD_LENGTH) {
+      this.clearFeedback()
       gameState.clearSelection()
       this.refreshState()
+      this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
       return
     }
     const prevFound = this.wordSlots.map(s => s.isFound)
     const prevBonusCount = gameState.bonusWordsFound.length
     const success = gameState.submitWord()
     this.refreshState()
+    this.feedbackLetterIds = submittedLetterIds
+    this.linePoints = submittedPoints
     const isBonusWord = success && gameState.bonusWordsFound.length > prevBonusCount
     if (success) {
       soundManager.play(gameState.isLevelComplete ? SoundNames.LEVEL_COMPLETE : SoundNames.CORRECT_WORD)
+      this.lineFeedback = 'success'
     } else {
       soundManager.play(SoundNames.WRONG_WORD)
+      this.lineFeedback = 'wrong'
     }
+    this.drawLines()
     if (success) {
       const newIndex = this.wordSlots.findIndex((s, i) => s.isFound && !prevFound[i])
       if (newIndex !== -1) {
@@ -580,6 +651,9 @@ export struct GamePage {
           this.successFlashSlotIndex = -1
         }, 250)
       }
+      setTimeout(() => {
+        this.clearFeedback()
+      }, 420)
       if (gameState.isLevelComplete) {
         const durationMs = Date.now() - this.pageEnterMs
         StatsStore.trySetFastest(gameState.currentLevelId, durationMs)
@@ -625,10 +699,16 @@ export struct GamePage {
         const c = slot.dir === 'H' ? slot.col + li : slot.col
         if (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
           const cell = full[r][c]
-          if (cell.slotIndex === -1 || (slot.isFound && !cell.isFound)) {
+          const wasFound = cell.isFound
+          if (slot.isFound) {
+            cell.isFound = true
+          }
+          if (slot.revealedIndexes.indexOf(li) !== -1) {
+            cell.isRevealed = true
+          }
+          if (cell.slotIndex === -1 || (slot.isFound && !wasFound)) {
             cell.slotIndex = s
             cell.letterIndex = li
-            cell.isFound = slot.isFound
             cell.revealedIndexes = slot.revealedIndexes.slice()
           }
         }
@@ -702,6 +782,7 @@ export struct GamePage {
     }, 350)
     setTimeout(() => {
       gameState.hideError()
+      this.clearFeedback()
       this.refreshState()
       this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
     }, GameLayout.ERROR_DELAY)
@@ -709,7 +790,7 @@ export struct GamePage {
 
   private updatePressedByPos(x: number, y: number) {
     const r = GameLayout.LETTER_SIZE / 2
-    const hit = r * 0.9
+    const hit = r * 1.18
     const letters = this.letters
     const pos = this.letterPos
 
@@ -724,5 +805,64 @@ export struct GamePage {
       }
     }
     this.pressedLetterId = ''
+  }
+
+  private handleHintTap(): void {
+    const now = Date.now()
+    if (this.hintCount <= 0 || now - this.lastHintTapMs < 250) {
+      return
+    }
+    this.lastHintTapMs = now
+    this.clearFeedback()
+    gameState.clearSelection()
+    gameState.useHint()
+    this.refreshState()
+  }
+
+  private isHintPoint(x: number, y: number): boolean {
+    const padding = 8
+    return x >= this.hintPosX - padding &&
+      x <= this.hintPosX + GameLayout.HINT_SIZE + padding &&
+      y >= this.hintPosY - padding &&
+      y <= this.hintPosY + GameLayout.HINT_SIZE + padding
+  }
+
+  private clearFeedback(): void {
+    this.lineFeedback = 'normal'
+    this.feedbackLetterIds = []
+    this.linePoints = []
+    this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
+  }
+
+  private isFeedbackLetter(id: number): boolean {
+    return this.feedbackLetterIds.indexOf(id) !== -1
+  }
+
+  private letterStrokeColor(item: LetterItem): string {
+    if (this.isFeedbackLetter(item.id)) {
+      return this.lineFeedback === 'wrong' ? '#FF5252' : AppColors.LINE_GREEN
+    }
+    return item.isSelected ? AppColors.PRIMARY_GOLD : AppColors.WHITE
+  }
+
+  private letterTextColor(item: LetterItem): string {
+    if (this.isFeedbackLetter(item.id)) {
+      return this.lineFeedback === 'wrong' ? '#FFB3B3' : '#D8FFB8'
+    }
+    return item.isSelected ? AppColors.PRIMARY_GOLD : AppColors.WHITE
+  }
+
+  private letterGlowColor(item: LetterItem): string {
+    if (this.isFeedbackLetter(item.id)) {
+      return this.lineFeedback === 'wrong' ? '#FF5252' : AppColors.LINE_GREEN
+    }
+    return item.isSelected || this.pressedLetterId === item.id.toString() ? '#FFD36A' : '#000000'
+  }
+
+  private letterScale(item: LetterItem): number {
+    if (this.isFeedbackLetter(item.id)) {
+      return this.lineFeedback === 'wrong' ? 1.12 : 1.16
+    }
+    return this.pressedLetterId === item.id.toString() || item.isSelected ? 1.12 : 1.0
   }
 }
