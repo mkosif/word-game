@@ -85,25 +85,34 @@ export struct WinPage {
 
   private startStarReveal(): void {
     const ui = this.getUIContext()
+    const visibleStars = Math.min(3, this.earnedStars)
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < visibleStars; i++) {
       const idx = i
 
       setTimeout(() => {
         const s1 = this.starScales.slice()
-        s1[idx] = 1.3
-        ui.animateTo({ duration: 150, curve: Curve.EaseIn }, () => {
+        s1[idx] = 1.42
+        ui.animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
           this.starScales = s1
         })
 
         setTimeout(() => {
           const s2 = this.starScales.slice()
-          s2[idx] = 1.0
-          ui.animateTo({ duration: 150, curve: Curve.EaseIn }, () => {
+          s2[idx] = 0.94
+          ui.animateTo({ duration: 80, curve: Curve.EaseIn }, () => {
             this.starScales = s2
           })
-        }, 250)
-      }, 200 + idx * 250)
+
+          setTimeout(() => {
+            const s3 = this.starScales.slice()
+            s3[idx] = 1.0
+            ui.animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
+              this.starScales = s3
+            })
+          }, 90)
+        }, 130)
+      }, 160 + idx * 170)
     }
   }
 
@@ -177,6 +186,7 @@ export struct WinPage {
               this.drawConfetti()
             })
             .position({ x: 0, y: 0 })
+            .hitTestBehavior(HitTestMode.None)
         }
       }.width('100%').height('100%').backgroundColor(this.bgColor)
 
@@ -237,19 +247,18 @@ export struct WinPage {
     this.confettiOpacity = 1
     this.showConfetti = true
     this.confettiParts = []
-    const w = 200
-    const h = 200
-
     const colors: string[] = [AppColors.PRIMARY_GOLD, AppColors.SUCCESS_GREEN, '#FF5A5F', '#4DA3FF', '#FFFFFF']
 
-    for (let i = 0; i < 24; i++) {
-      const x = getRandomValue() * w
-      const y = -10 - getRandomValue() * 40
-      const vx = (getRandomValue() - 0.5) * 1.6
-      const vy = 1.2 + getRandomValue() * 1.6
-      const size = 3 + getRandomValue() * 4
+    for (let i = 0; i < 28; i++) {
+      const angle = getRandomValue() * Math.PI * 2
+      const speed = 1.1 + getRandomValue() * 2.1
+      const x = 100 + (getRandomValue() - 0.5) * 18
+      const y = 74 + (getRandomValue() - 0.5) * 10
+      const vx = Math.cos(angle) * speed
+      const vy = Math.sin(angle) * speed - 0.9
+      const size = 2.5 + getRandomValue() * 3.5
       const vr = (getRandomValue() - 0.5) * 10
-      const life = 60 + Math.floor(getRandomValue() * 25)
+      const life = 42 + Math.floor(getRandomValue() * 24)
       const c = colors[Math.floor(getRandomValue() * colors.length)]
       this.confettiParts.push(new ConfettiPiece(x, y, vx, vy, size, vr, life, c))
     }
@@ -266,11 +275,11 @@ export struct WinPage {
 
     setTimeout(() => {
       this.stopConfetti()
-    }, 4200)
+    }, 2600)
   }
 
   private stopConfetti(): void {
-    this.getUIContext().animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+    this.getUIContext().animateTo({ duration: 320, curve: Curve.EaseOut }, () => {
       this.confettiOpacity = 0
     })
 
@@ -281,7 +290,7 @@ export struct WinPage {
       }
       this.showConfetti = false
       this.confettiCtx?.clearRect(0, 0, 200, 200)
-    }, 260)
+    }, 340)
   }
 
   private updateConfetti(): void {

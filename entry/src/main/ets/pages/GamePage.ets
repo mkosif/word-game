@@ -70,6 +70,8 @@ export struct GamePage {
   @State shufflePosY: number = 0
   @State letterPos: number[] = []
   @State pressedLetterId: string = ''
+  @State snapLetterId: string = ''
+  @State snapLetterScale: number = 1
   @State wrongFlash: boolean = false
   @State wrongShakeX: number = 0
   @State successFlashSlotIndex: number = -1
@@ -82,6 +84,7 @@ export struct GamePage {
   @State feedbackLetterIds: number[] = []
   @State hintFlashKeys: string[] = []
   @State hintFlashOn: boolean = false
+  @State hintFlashPhase: number = 0
   @State bgColor: string = AppColors.BACKGROUND_DARK
   @State crosswordRows: CrosswordRow[] = []
   @State crosswordCellSize: number = 20
@@ -96,6 +99,7 @@ export struct GamePage {
   private ignoreCurrentPan: boolean = false
   private lastHintTapMs: number = 0
   private hintFlashSeq: number = 0
+  private lineAnimTimerId: number = 0
   private readonly LETTER_CENTER: number = GameLayout.LETTER_SIZE / 2
   private readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
   private readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD + 4
@@ -116,6 +120,7 @@ export struct GamePage {
   }
 
   aboutToDisappear(): void {
+    this.stopLineAnimationLoop()
     this.setGestureBackEnabled(true)
     const delta = Date.now() - this.pageEnterMs
     StatsStore.addPlayTimeMs(delta)
@@ -236,24 +241,26 @@ export struct GamePage {
       const first = this.linePoints[0]
       const last = this.linePoints[this.linePoints.length - 1]
       const gradient = this.canvasContext.createLinearGradient(first.x, first.y, last.x, last.y)
-      gradient.addColorStop(0, '#FFD36A')
-      gradient.addColorStop(1, '#FF7A00')
+      gradient.addColorStop(0, '#FFE08A')
+      gradient.addColorStop(1, AppColors.PRIMARY_GOLD)
       this.canvasContext.strokeStyle = gradient
     } else {
-      this.canvasContext.strokeStyle = '#FFD36A'
+      this.canvasContext.strokeStyle = '#FFE08A'
     }
-    const minW = 2
-    const maxW = 5
+    const minW = 1.4
+    const maxW = 3
     const totalSegments = Math.max(1, this.linePoints.length - 1)
     this.canvasContext.shadowColor = this.lineFeedback === 'wrong' ? '#FF5252' :
-      (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : '#FFD36A')
-    this.canvasContext.shadowBlur = this.lineFeedback === 'normal' ? 10 : 14
+      (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : AppColors.PRIMARY_GOLD)
+    this.canvasContext.shadowBlur = this.lineFeedback === 'normal' ? 5 : 9
+
+    this.drawLineGlow()
 
     for (let i = 1; i < this.linePoints.length; i++) {
       const p0 = this.linePoints[i - 1]
       const p1 = this.linePoints[i]
       const t = (i - 1) / totalSegments
-      const w = (this.lineFeedback === 'normal' ? minW : 4) + (maxW - minW) * Math.sin(Math.PI * t)
+      const w = (this.lineFeedback === 'normal' ? minW : 3) + (maxW - minW) * Math.sin(Math.PI * t)
       this.canvasContext.lineWidth = w
       this.canvasContext.beginPath()
       this.canvasContext.moveTo(p0.x, p0.y)
@@ -262,22 +269,63 @@ export struct GamePage {
     }
     if (this.isDragging && this.lineFeedback === 'normal' && this.linePoints.length > 0) {
       const last = this.linePoints[this.linePoints.length - 1]
-      this.canvasContext.lineWidth = minW
+      this.canvasContext.lineWidth = 1.6
       this.canvasContext.beginPath()
       this.canvasContext.moveTo(last.x, last.y)
       this.canvasContext.lineTo(this.currentTouchX, this.currentTouchY)
       this.canvasContext.stroke()
+      this.drawLiveLineTip()
     }
     for (let i = 0; i < this.linePoints.length; i++) {
       const point = this.linePoints[i]
       this.canvasContext.beginPath()
-      this.canvasContext.arc(point.x, point.y, this.lineFeedback === 'normal' ? 3 : 4, 0, 2 * Math.PI)
+      this.canvasContext.arc(point.x, point.y, this.lineFeedback === 'normal' ? 2.2 : 3.2, 0, 2 * Math.PI)
       this.canvasContext.fillStyle = this.lineFeedback === 'wrong' ? '#FF5252' :
-        (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : '#FFD36A')
+        (this.lineFeedback === 'success' ? AppColors.LINE_GREEN : '#FFE08A')
       this.canvasContext.fill()
     }
     this.canvasContext.shadowBlur = 0
     this.canvasContext.shadowColor = 'transparent'
+  }
+
+  private drawLineGlow(): void {
+    if (this.linePoints.length < 2) {
+      return
+    }
+    const glowColor = this.lineFeedback === 'wrong' ? '#FF525226' :
+      (this.lineFeedback === 'success' ? '#76FF0326' : '#F5A62328')
+    this.canvasContext.save()
+    this.canvasContext.lineCap = 'round'
+    this.canvasContext.lineJoin = 'round'
+    this.canvasContext.strokeStyle = glowColor
+    this.canvasContext.lineWidth = this.lineFeedback === 'normal' ? 3.5 : 5
+    this.canvasContext.shadowColor = glowColor
+    this.canvasContext.shadowBlur = 6
+    this.canvasContext.beginPath()
+    this.canvasContext.moveTo(this.linePoints[0].x, this.linePoints[0].y)
+    for (let i = 1; i < this.linePoints.length; i++) {
+      this.canvasContext.lineTo(this.linePoints[i].x, this.linePoints[i].y)
+    }
+    this.canvasContext.stroke()
+    this.canvasContext.restore()
+  }
+
+  private drawLiveLineTip(): void {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 140)
+    const radius = 2.4 + pulse * 1
+    this.canvasContext.save()
+    this.canvasContext.shadowColor = AppColors.PRIMARY_GOLD
+    this.canvasContext.shadowBlur = 5
+    this.canvasContext.fillStyle = '#FFE08A'
+    this.canvasContext.beginPath()
+    this.canvasContext.arc(this.currentTouchX, this.currentTouchY, radius, 0, 2 * Math.PI)
+    this.canvasContext.fill()
+    this.canvasContext.strokeStyle = '#FFFFFF33'
+    this.canvasContext.lineWidth = 1
+    this.canvasContext.beginPath()
+    this.canvasContext.arc(this.currentTouchX, this.currentTouchY, radius + 2, 0, 2 * Math.PI)
+    this.canvasContext.stroke()
+    this.canvasContext.restore()
   }
 
   findLetterAtPosition(x: number, y: number): LetterItem | null {
@@ -297,11 +345,13 @@ export struct GamePage {
     this.lineFeedback = 'normal'
     this.feedbackLetterIds = []
     this.isDragging = true
+    this.startLineAnimationLoop()
     this.currentTouchX = x
     this.currentTouchY = y
     const letter = this.findLetterAtPosition(x, y)
     if (letter !== null && !letter.isSelected) {
       gameState.selectLetter(letter)
+      this.playLetterSnap(letter.id)
       soundManager.play(SoundNames.LETTER_SELECT)
       hapticManager.play(HapticNames.LETTER_SELECT)
       this.refreshState()
@@ -319,6 +369,7 @@ export struct GamePage {
     if (letter !== null) {
       if (!letter.isSelected) {
         gameState.selectLetter(letter)
+        this.playLetterSnap(letter.id)
         soundManager.play(SoundNames.LETTER_SELECT)
         hapticManager.play(HapticNames.LETTER_SELECT)
         this.refreshState()
@@ -326,6 +377,7 @@ export struct GamePage {
         const selected = gameState.selectedLetters
         if (selected.length >= 2 && selected[selected.length - 2].id === letter.id) {
           gameState.undoLastLetter()
+          this.playLetterSnap(letter.id)
           soundManager.play(SoundNames.LETTER_SELECT)
           hapticManager.play(HapticNames.LETTER_SELECT)
           this.refreshState()
@@ -337,6 +389,7 @@ export struct GamePage {
 
   onTouchEnd(): void {
     this.isDragging = false
+    this.stopLineAnimationLoop()
     this.drawLines()
     if (this.currentWord.length >= GameLayout.MIN_WORD_LENGTH) {
       this.submitWord()
@@ -345,6 +398,56 @@ export struct GamePage {
       this.refreshState()
       this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
     }
+  }
+
+  private startLineAnimationLoop(): void {
+    if (this.lineAnimTimerId > 0) {
+      return
+    }
+    this.lineAnimTimerId = setInterval(() => {
+      if (!this.isDragging) {
+        this.stopLineAnimationLoop()
+        return
+      }
+      this.drawLines()
+    }, 66) as number
+  }
+
+  private stopLineAnimationLoop(): void {
+    if (this.lineAnimTimerId > 0) {
+      clearInterval(this.lineAnimTimerId)
+      this.lineAnimTimerId = 0
+    }
+  }
+
+  private playLetterSnap(id: number): void {
+    const key = id.toString()
+    this.snapLetterId = key
+    this.snapLetterScale = 1.08
+    this.getUIContext().animateTo({ duration: 70, curve: Curve.EaseOut }, () => {
+      this.snapLetterScale = 1.14
+    })
+    setTimeout(() => {
+      if (this.snapLetterId !== key) {
+        return
+      }
+      this.getUIContext().animateTo({ duration: 90, curve: Curve.EaseIn }, () => {
+        this.snapLetterScale = 1.03
+      })
+    }, 75)
+    setTimeout(() => {
+      if (this.snapLetterId !== key) {
+        return
+      }
+      this.getUIContext().animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
+        this.snapLetterScale = 1
+      })
+    }, 170)
+    setTimeout(() => {
+      if (this.snapLetterId === key) {
+        this.snapLetterId = ''
+      }
+    }, 285)
   }
 
   build() {
@@ -410,7 +513,7 @@ export struct GamePage {
             bottom: 8
           })
         }
-        .translate({ x: this.wrongShakeX, y: 0 })
+        .translate({ x: this.wrongShakeX, y: 14 })
         .animation({ duration: 60, curve: Curve.Linear })
         .width('100%')
         .height('100%')
@@ -437,7 +540,7 @@ export struct GamePage {
                 offsetX: 0,
                 offsetY: 0
               })
-              .animation({ duration: 120, curve: Curve.EaseOut })
+              .animation({ duration: 150, curve: Curve.EaseOut })
 
             Text(item.letter)
               .fontSize(20)
@@ -548,59 +651,39 @@ export struct GamePage {
           .opacity(this.bonusPopupOpacity)
         }
         if (this.showTutorial) {
-          Column() {
-            Row() {
-              this.TutorialLetter('W')
-              Text('\u2192')
-                .fontSize(12)
-                .fontColor(AppColors.PRIMARY_GOLD)
-                .margin({ left: 4, right: 4 })
-              this.TutorialLetter('O')
-              Text('\u2192')
-                .fontSize(12)
-                .fontColor(AppColors.PRIMARY_GOLD)
-                .margin({ left: 4, right: 4 })
-              this.TutorialLetter('R')
-              Text('\u2192')
-                .fontSize(12)
-                .fontColor(AppColors.PRIMARY_GOLD)
-                .margin({ left: 4, right: 4 })
-              this.TutorialLetter('D')
-            }.margin({ bottom: 8 })
-
-            Row() {
-              Text('\uD83D\uDCA1')
+          Stack() {
+            Rect().width('100%').height('100%').fill('#00000055')
+            Column() {
+              Text('How to Play')
                 .fontSize(14)
-                .width(22)
-                .textAlign(TextAlign.Center)
-              Text('reveals a tile')
-                .fontSize(10)
-                .fontColor(AppColors.GRAY_LIGHT)
-                .layoutWeight(1)
-              Text('OK')
-                .fontSize(11)
-                .fontColor(AppColors.BLACK)
+                .fontColor(AppColors.WHITE)
                 .fontWeight(FontWeight.Bold)
-                .width(42)
-                .height(24)
+                .margin({ bottom: 12 })
+              Text('Drag letters to form a word.\nBlanks fill when the word is correct.\n\uD83D\uDCA1 = Hint')
+                .fontSize(11)
+                .fontColor(AppColors.GRAY_LIGHT)
                 .textAlign(TextAlign.Center)
-                .backgroundColor(AppColors.PRIMARY_GOLD)
-                .borderRadius(12)
-                .onClick(() => {
+                .margin({ bottom: 12 })
+              Row() {
+                Stack() {
+                  Rect().width(120).height(40).fill(AppColors.GRAY_DARK).radius(15)
+                  Text('Skip').fontSize(14).fontColor(AppColors.WHITE).fontWeight(FontWeight.Bold)
+                }.onClick(() => {
                   gameState.closeTutorial(true)
                   this.refreshState()
                 })
+              }
+              .backgroundColor(Color.Transparent)
             }
-            .width('100%')
-            .alignItems(VerticalAlign.Center)
+            .padding(12)
+            .backgroundColor('#1A1A1A')
+            .borderRadius(12)
+            .width(170)
+            .alignItems(HorizontalAlign.Center)
+            .justifyContent(FlexAlign.Center)
           }
-          .padding({ left: 10, right: 10, top: 9, bottom: 9 })
-          .backgroundColor('#111827EE')
-          .borderRadius(12)
-          .border({ width: 1, color: '#FFFFFF26' })
-          .shadow({ radius: 14, color: '#00000066', offsetX: 0, offsetY: 4 })
-          .width(190)
-          .position({ x: 22, y: 40 })
+          .width('100%')
+          .height('100%')
         }
       }.width('100%').height('100%').backgroundColor(this.bgColor)
       .gesture(PanGesture({ fingers: 1, distance: 1 }).onActionStart((event: GestureEvent) => {
@@ -685,11 +768,11 @@ export struct GamePage {
         setTimeout(() => {
           this.successFlashOn = false
           this.successFlashSlotIndex = -1
-        }, 250)
+        }, 360)
       }
       setTimeout(() => {
         this.clearFeedback()
-      }, 420)
+      }, 520)
       if (gameState.isLevelComplete) {
         const durationMs = Date.now() - this.pageEnterMs
         StatsStore.setLastCompletedLevelMs(durationMs)
@@ -806,7 +889,7 @@ export struct GamePage {
       newLetters.push(gameState.letters[i].clone())
     }
     this.letters = newLetters // Animate from old positions (p0x/y) to new positions
-    this.getUIContext().animateTo({ duration: 350, curve: Curve.EaseInOut }, () => {
+    this.getUIContext().animateTo({ duration: 420, curve: Curve.EaseInOut }, () => {
       const newPos: number[] = []
       for (let i = 0; i < gameState.letters.length; i++) {
         newPos.push(gameState.letters[i].x)
@@ -843,17 +926,16 @@ export struct GamePage {
   private showErrorAnimation(): void {
     this.showError = true
     this.wrongFlash = true
-    const d = 60
-    this.wrongShakeX = 8
-    setTimeout(() => this.wrongShakeX = -6, d)
-    setTimeout(() => this.wrongShakeX = 6, d * 2)
-    setTimeout(() => this.wrongShakeX = -4, d * 3)
-    setTimeout(() => this.wrongShakeX = 4, d * 4)
-    setTimeout(() => this.wrongShakeX = 0, d * 5)
+    const d = 45
+    this.wrongShakeX = 7
+    setTimeout(() => this.wrongShakeX = -7, d)
+    setTimeout(() => this.wrongShakeX = 5, d * 2)
+    setTimeout(() => this.wrongShakeX = -3, d * 3)
+    setTimeout(() => this.wrongShakeX = 0, d * 4)
     setTimeout(() => {
       this.wrongFlash = false
       this.showError = false
-    }, 350)
+    }, 260)
     setTimeout(() => {
       gameState.hideError()
       this.clearFeedback()
@@ -949,12 +1031,26 @@ export struct GamePage {
     const seq = this.hintFlashSeq
     this.hintFlashKeys = keys
     this.hintFlashOn = true
+    this.hintFlashPhase = 1
+    setTimeout(() => {
+      if (seq !== this.hintFlashSeq) {
+        return
+      }
+      this.hintFlashPhase = 2
+    }, 140)
+    setTimeout(() => {
+      if (seq !== this.hintFlashSeq) {
+        return
+      }
+      this.hintFlashPhase = 3
+    }, 560)
     setTimeout(() => {
       if (seq !== this.hintFlashSeq) {
         return
       }
       this.hintFlashOn = false
-    }, 720)
+      this.hintFlashPhase = 0
+    }, 820)
     setTimeout(() => {
       if (seq !== this.hintFlashSeq) {
         return
@@ -969,10 +1065,13 @@ export struct GamePage {
 
   private crosswordCellKey(cell: CrosswordCell): string {
     return `cell_${this.crosswordRevision}_${cell.row}_${cell.col}_${cell.slotIndex}_${cell.letter}_${this.crosswordCellText(cell)}_${cell.isFound ? 1 :
-      0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${cell.revealedIndexes.join(',')}`
+      0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${this.hintFlashPhase}_${cell.revealedIndexes.join(',')}`
   }
 
   private crosswordCellText(cell: CrosswordCell): string {
+    if (this.isHintFlashCell(cell) && this.hintFlashPhase === 1) {
+      return ''
+    }
     if (cell.isFound || this.isCellInFoundSlot(cell) || cell.isLetterRevealed() || this.isHintFlashCell(cell)) {
       return cell.letter
     }
@@ -1002,7 +1101,7 @@ export struct GamePage {
 
   private crosswordCellBg(cell: CrosswordCell): string {
     if (this.isHintFlashCell(cell)) {
-      return AppColors.PRIMARY_GOLD
+      return this.hintFlashPhase === 3 ? AppColors.WORD_SLOT_FILLED : AppColors.PRIMARY_GOLD
     }
     if (this.wrongFlash) {
       return '#600020'
@@ -1021,7 +1120,7 @@ export struct GamePage {
 
   private crosswordCellBorderWidth(cell: CrosswordCell): number {
     if (this.isHintFlashCell(cell)) {
-      return 2
+      return this.hintFlashPhase === 1 ? 3 : 2
     }
     return cell.isLetterRevealed() && !cell.isFound ? 1 : 0
   }
@@ -1037,12 +1136,24 @@ export struct GamePage {
   }
 
   private crosswordCellScale(cell: CrosswordCell): number {
-    return this.isHintFlashCell(cell) ? 1.12 : 1
+    if (this.isHintFlashCell(cell)) {
+      if (this.hintFlashPhase === 1) {
+        return 1.04
+      }
+      if (this.hintFlashPhase === 2) {
+        return 1.12
+      }
+      return 1.03
+    }
+    if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
+      return 1.08
+    }
+    return 1
   }
 
   private crosswordCellShadowRadius(cell: CrosswordCell): number {
     if (this.isHintFlashCell(cell)) {
-      return 14
+      return this.hintFlashPhase === 1 ? 18 : 11
     }
     if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
       return 8
@@ -1061,7 +1172,7 @@ export struct GamePage {
   }
 
   private crosswordCellAnimDuration(): number {
-    return (this.successFlashOn || this.wrongFlash || this.hintFlashOn) ? 160 : 0
+    return (this.successFlashOn || this.wrongFlash || this.hintFlashOn) ? 220 : 0
   }
 
   private isFeedbackLetter(id: number): boolean {
@@ -1093,6 +1204,9 @@ export struct GamePage {
     if (this.isFeedbackLetter(item.id)) {
       return this.lineFeedback === 'wrong' ? 1.12 : 1.16
     }
-    return this.pressedLetterId === item.id.toString() || item.isSelected ? 1.12 : 1.0
+    if (this.snapLetterId === item.id.toString()) {
+      return this.snapLetterScale
+    }
+    return this.pressedLetterId === item.id.toString() || item.isSelected ? 1.08 : 1.0
   }
 }

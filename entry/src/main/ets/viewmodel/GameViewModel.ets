@@ -8,6 +8,16 @@ interface WordPos {
   dir: string
 }
 
+class HintCandidate {
+  slotIndex: number = 0
+  letterIndex: number = 0
+
+  constructor(slotIndex: number, letterIndex: number) {
+    this.slotIndex = slotIndex
+    this.letterIndex = letterIndex
+  }
+}
+
 function getRandomValue(): number {
   try {
     const random = cryptoFramework.createRandom();
@@ -138,43 +148,29 @@ export class GameState {
     if (this.hintCount <= 0) {
       return false
     }
-    if (!this.currentLevel) {
+    const candidates: HintCandidate[] = []
+    for (let slotIndex = 0; slotIndex < this.wordSlots.length; slotIndex++) {
+      const slot = this.wordSlots[slotIndex]
+      if (slot.isFound) {
+        continue
+      }
+      for (let letterIndex = 0; letterIndex < slot.word.length; letterIndex++) {
+        if (slot.revealedIndexes.indexOf(letterIndex) === -1) {
+          candidates.push(new HintCandidate(slotIndex, letterIndex))
+        }
+      }
+    }
+
+    if (candidates.length === 0) {
       return false
     }
-    const hints = this.currentLevel.hints
 
-    while (this.hintIndex < hints.length) {
-      const hint = hints[this.hintIndex]
-      this.hintIndex += 1
-
-      let slotIdx = -1
-      for (let i = 0; i < this.wordSlots.length; i++) {
-        if (this.wordSlots[i].word === hint.word && !this.wordSlots[i].isFound) {
-          slotIdx = i
-          break
-        }
-      }
-      if (slotIdx === -1) {
-        continue
-      }  // word already found, skip to next hint
-
-      const slot = this.wordSlots[slotIdx]
-      for (let i = 0; i < hint.revealIndexes.length; i++) {
-        const idx = hint.revealIndexes[i]
-        let already = false
-        for (let j = 0; j < slot.revealedIndexes.length; j++) {
-          if (slot.revealedIndexes[j] === idx) { already = true; break }
-        }
-        if (!already) {
-          slot.revealedIndexes.push(idx)
-        }
-      }
-
-      this.hintCount -= 1
-      this.updateScore()
-      return true
-    }
-    return false
+    const selectedIndex = Math.floor(getRandomValue() * candidates.length)
+    const selected = candidates[selectedIndex]
+    this.wordSlots[selected.slotIndex].revealedIndexes.push(selected.letterIndex)
+    this.hintCount -= 1
+    this.updateScore()
+    return true
   }
 
   shuffleLetters(): void {
