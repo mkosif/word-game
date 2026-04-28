@@ -9,6 +9,7 @@ import { GameState } from '../viewmodel/GameViewModel'
 export struct SettingsPage {
   @Consume('navPathStack') navPathStack: NavPathStack
   @State soundEnabled: boolean = AppStorage.get<boolean>(Settings.SOUND_ENABLED_KEY) ?? true
+  @State hapticEnabled: boolean = AppStorage.get<boolean>(Settings.HAPTIC_ENABLED_KEY) ?? true
   @State isDarkTheme: boolean = AppStorage.get<boolean>(Settings.IS_DARK_THEME_KEY) ?? true
   @State showResetConfirm: boolean = false
 
@@ -35,6 +36,32 @@ export struct SettingsPage {
     .onClick(() => {
       this.soundEnabled = !this.soundEnabled
       AppStorage.set(Settings.SOUND_ENABLED_KEY, this.soundEnabled)
+    })
+  }
+
+  @Builder
+  HapticToggleRow() {
+    Row() {
+      Text('\u25CC').fontSize(15).width(22).textAlign(TextAlign.Center).fontColor(AppColors.WHITE)
+
+      Text('Haptics').fontSize(13).fontColor(AppColors.WHITE).layoutWeight(1).margin({ left: 8 })
+
+      Stack() {
+        Rect().width(38).height(20)
+          .fill(this.hapticEnabled ? AppColors.SUCCESS_GREEN : AppColors.GRAY_DARK).radius(10)
+        Circle().width(16).height(16).fill(AppColors.WHITE)
+          .position({ x: this.hapticEnabled ? 20 : 2, y: 2 })
+      }.width(38).height(20)
+    }
+    .width('82%')
+    .height(40)
+    .padding({ left: 12, right: 10 })
+    .backgroundColor(AppColors.LETTER_BG)
+    .borderRadius(12)
+    .margin({ bottom: 6 })
+    .onClick(() => {
+      this.hapticEnabled = !this.hapticEnabled
+      AppStorage.set(Settings.HAPTIC_ENABLED_KEY, this.hapticEnabled)
     })
   }
 
@@ -82,6 +109,8 @@ export struct SettingsPage {
           }.width('82%').margin({ top: 38, bottom: 12 })
 
           this.SoundToggleRow()
+
+          this.HapticToggleRow()
 
           this.ThemeToggleRow()
 

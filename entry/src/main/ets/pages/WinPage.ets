@@ -51,6 +51,11 @@ export struct WinPage {
   @State bgColor: string = AppColors.BACKGROUND_DARK
   @State showConfetti: boolean = false
   @State confettiOpacity: number = 0
+  @State scoreValue: number = 0
+  @State wordsFound: number = 0
+  @State wordsTotal: number = 0
+  @State bonusFound: number = 0
+  @State bonusTotal: number = 0
   private levelScore: number = 0
   private mainStars: number[] = [1, 2, 3]
   private bonusStars: number[] = [4, 5]
@@ -62,6 +67,12 @@ export struct WinPage {
   aboutToAppear(): void {
     this.currentLevel = gameState.currentLevelId
     this.levelScore = gameState.levelScore
+    this.scoreValue = Math.round(this.levelScore)
+    this.wordsFound = gameState.foundWords.length
+    this.wordsTotal = gameState.wordSlots.length
+    this.bonusFound = gameState.bonusWordsFound.length
+    this.bonusTotal = gameState.currentLevel && gameState.currentLevel.bonusWords ?
+      gameState.currentLevel.bonusWords.length : 0
     this.earnedStars = this.calcStars()
     this.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
     this.startStarReveal()
@@ -130,6 +141,16 @@ export struct WinPage {
 
           Text('Completed').fontSize(12).fontColor(AppColors.GRAY_LIGHT).margin({ bottom: 6 })
 
+          Row() {
+            this.StatChip('Score', this.scoreValue.toString())
+            this.StatChip('Words', `${this.wordsFound.toString()}/${this.wordsTotal.toString()}`)
+            if (this.bonusTotal > 0) {
+              this.StatChip('Bonus', `${this.bonusFound.toString()}/${this.bonusTotal.toString()}`)
+            }
+          }
+          .justifyContent(FlexAlign.Center)
+          .margin({ bottom: 10 })
+
           // Buttons
           Column() {
             if (this.currentLevel < getTotalLevels()) {
@@ -166,6 +187,26 @@ export struct WinPage {
         }
       }).position({ x: 24, y: 4 })
     }.hideTitleBar(true).backgroundColor(this.bgColor)
+  }
+
+  @Builder
+  private StatChip(label: string, value: string) {
+    Column() {
+      Text(value)
+        .fontSize(13)
+        .fontColor(AppColors.WHITE)
+        .fontWeight(FontWeight.Bold)
+      Text(label)
+        .fontSize(8)
+        .fontColor(AppColors.GRAY_LIGHT)
+    }
+    .width(54)
+    .height(34)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .backgroundColor('#00000040')
+    .borderRadius(8)
+    .margin({ left: 3, right: 3 })
   }
 
   private startConfetti(): void {

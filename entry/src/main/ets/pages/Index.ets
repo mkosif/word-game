@@ -11,6 +11,7 @@ import { GameState, gameState } from '../viewmodel/GameViewModel'
 PersistentStorage.persistProp(MAX_UNLOCKED_KEY, 1)
 PersistentStorage.persistProp(CURRENT_LEVEL_KEY, 1)
 PersistentStorage.persistProp(Settings.SOUND_ENABLED_KEY, true)
+PersistentStorage.persistProp(Settings.HAPTIC_ENABLED_KEY, true)
 PersistentStorage.persistProp(Settings.IS_DARK_THEME_KEY, true)
 PersistentStorage.persistProp(GameState.TUTORIAL_DONE, false)
 StatsStore.init()

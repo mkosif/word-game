@@ -3,6 +3,7 @@ import { GameState, gameState, LetterItem, WordSlot } from '../viewmodel/GameVie
 import { HintButton } from '../components/HintButton'
 import { BackButton } from '../components/BackButton'
 import { soundManager, SoundNames } from '../common/SoundManager'
+import { hapticManager, HapticNames } from '../common/HapticManager'
 import { StatsStore } from '../components/StatsStore'
 import { window } from '@kit.ArkUI'
 
@@ -18,6 +19,8 @@ class LinePoint {
 
 class CrosswordCell {
   isActive: boolean = false
+  row: number = -1
+  col: number = -1
   slotIndex: number = -1
   letterIndex: number = -1
   letter: string = ''
@@ -77,6 +80,8 @@ export struct GamePage {
   @State bonusPopupOpacity: number = 0
   @State lineFeedback: string = 'normal'
   @State feedbackLetterIds: number[] = []
+  @State hintFlashKeys: string[] = []
+  @State hintFlashOn: boolean = false
   @State bgColor: string = AppColors.BACKGROUND_DARK
   @State crosswordRows: CrosswordRow[] = []
   @State crosswordCellSize: number = 20
@@ -89,6 +94,7 @@ export struct GamePage {
   private bonusCanvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.bonusCanvasSettings)
   private ignoreCurrentPan: boolean = false
   private lastHintTapMs: number = 0
+  private hintFlashSeq: number = 0
   private readonly LETTER_CENTER: number = GameLayout.LETTER_SIZE / 2
   private readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
   private readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD + 4
@@ -295,6 +301,7 @@ export struct GamePage {
     if (letter !== null && !letter.isSelected) {
       gameState.selectLetter(letter)
       soundManager.play(SoundNames.LETTER_SELECT)
+      hapticManager.play(HapticNames.LETTER_SELECT)
       this.refreshState()
     }
     this.drawLines()
@@ -311,12 +318,14 @@ export struct GamePage {
       if (!letter.isSelected) {
         gameState.selectLetter(letter)
         soundManager.play(SoundNames.LETTER_SELECT)
+        hapticManager.play(HapticNames.LETTER_SELECT)
         this.refreshState()
       } else {
         const selected = gameState.selectedLetters
         if (selected.length >= 2 && selected[selected.length - 2].id === letter.id) {
           gameState.undoLastLetter()
           soundManager.play(SoundNames.LETTER_SELECT)
+          hapticManager.play(HapticNames.LETTER_SELECT)
           this.refreshState()
         }
       }
@@ -352,11 +361,22 @@ export struct GamePage {
                       .fontColor(AppColors.WHITE)
                       .fontWeight(FontWeight.Bold)
                       .textAlign(TextAlign.Center)
-                      .backgroundColor(this.wrongFlash ? '#600020' :
-                        (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex ? '#1DB954' :
-                          (cell.isFound ? AppColors.SUCCESS_GREEN :
-                            (cell.isLetterRevealed() ? AppColors.WORD_SLOT_FILLED : AppColors.WORD_SLOT_EMPTY))))
-                      .animation({ duration: (this.successFlashOn || this.wrongFlash) ? 160 : 0, curve: Curve.EaseOut })
+                      .backgroundColor(this.crosswordCellBg(cell))
+                      .border({
+                        width: this.isHintFlashCell(cell) ? 2 : 0,
+                        color: this.isHintFlashCell(cell) ? AppColors.STAR_GOLD : Color.Transparent
+                      })
+                      .scale({
+                        x: this.isHintFlashCell(cell) ? 1.12 : 1,
+                        y: this.isHintFlashCell(cell) ? 1.12 : 1
+                      })
+                      .shadow({
+                        radius: this.isHintFlashCell(cell) ? 14 : 0,
+                        color: this.isHintFlashCell(cell) ? AppColors.STAR_GOLD : Color.Transparent,
+                        offsetX: 0,
+                        offsetY: 0
+                      })
+                      .animation({ duration: (this.successFlashOn || this.wrongFlash || this.hintFlashOn) ? 160 : 0, curve: Curve.EaseOut })
                       .borderRadius(3)
                       .margin(1)
                   } else {
@@ -366,7 +386,7 @@ export struct GamePage {
                       .margin(1).opacity(0)
                   }
                 }, (cell: CrosswordCell, ci: number) => `c${ci}_${cell.slotIndex}_${cell.isFound ? 1 :
-                  0}_${cell.isRevealed ? 1 : 0}_${cell.revealedIndexes.join(',')}`)
+                  0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${cell.revealedIndexes.join(',')}`)
               }
             }, (row: CrosswordRow, ri: number) => `r${ri}`)
 
@@ -487,6 +507,7 @@ export struct GamePage {
         .onClick(() => {
           gameState.shuffleLetters()
           soundManager.play(SoundNames.SHUFFLE)
+          hapticManager.play(HapticNames.SHUFFLE)
           this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE,
             this.CANVAS_SIZE) // Sync this.letters for correct touch detection (p0x/y still hold old positions)
           const newLetters: LetterItem[] = []
@@ -539,38 +560,59 @@ export struct GamePage {
           .opacity(this.bonusPopupOpacity)
         }
         if (this.showTutorial) {
-          Stack() {
-            Rect().width('100%').height('100%').fill('#00000000')
-            Column() {
-              Text('How to Play')
+          Column() {
+            Row() {
+              this.TutorialLetter('W')
+              Text('\u2192')
+                .fontSize(12)
+                .fontColor(AppColors.PRIMARY_GOLD)
+                .margin({ left: 4, right: 4 })
+              this.TutorialLetter('O')
+              Text('\u2192')
+                .fontSize(12)
+                .fontColor(AppColors.PRIMARY_GOLD)
+                .margin({ left: 4, right: 4 })
+              this.TutorialLetter('R')
+              Text('\u2192')
+                .fontSize(12)
+                .fontColor(AppColors.PRIMARY_GOLD)
+                .margin({ left: 4, right: 4 })
+              this.TutorialLetter('D')
+            }.margin({ bottom: 8 })
+
+            Row() {
+              Text('\uD83D\uDCA1')
                 .fontSize(14)
-                .fontColor(AppColors.WHITE)
-                .fontWeight(FontWeight.Bold)
-                .margin({ bottom: 12 })
-              Text('Drag letters to form a word.\nBlanks fill when the word is correct.\n\uD83D\uDCA1 = Hint')
-                .fontSize(11)
-                .fontColor(AppColors.GRAY_LIGHT)
+                .width(22)
                 .textAlign(TextAlign.Center)
-                .margin({ bottom: 12 })
-              Row() {
-                Stack() {
-                  Rect().width(120).height(40).fill(AppColors.GRAY_DARK).radius(15)
-                  Text('Skip').fontSize(14).fontColor(AppColors.WHITE).fontWeight(FontWeight.Bold)
-                }.onClick(() => {
-                  console.info('[TUTORIAL] skip clicked')
+              Text('reveals a tile')
+                .fontSize(10)
+                .fontColor(AppColors.GRAY_LIGHT)
+                .layoutWeight(1)
+              Text('OK')
+                .fontSize(11)
+                .fontColor(AppColors.BLACK)
+                .fontWeight(FontWeight.Bold)
+                .width(42)
+                .height(24)
+                .textAlign(TextAlign.Center)
+                .backgroundColor(AppColors.PRIMARY_GOLD)
+                .borderRadius(12)
+                .onClick(() => {
                   gameState.closeTutorial(true)
                   this.refreshState()
                 })
-              }
-              .backgroundColor(Color.Transparent)
             }
-            .padding(12)
-            .backgroundColor('#1A1A1A')
-            .borderRadius(12)
-            .width(170)
-            .alignItems(HorizontalAlign.Center)
-            .justifyContent(FlexAlign.Center)
-          }.width('100%').height('100%')
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+          }
+          .padding({ left: 10, right: 10, top: 9, bottom: 9 })
+          .backgroundColor('#111827EE')
+          .borderRadius(12)
+          .border({ width: 1, color: '#FFFFFF26' })
+          .shadow({ radius: 14, color: '#00000066', offsetX: 0, offsetY: 4 })
+          .width(190)
+          .position({ x: 22, y: 40 })
         }
       }.width('100%').height('100%').backgroundColor(this.bgColor)
       .gesture(PanGesture({ fingers: 1, distance: 1 }).onActionStart((event: GestureEvent) => {
@@ -634,9 +676,15 @@ export struct GamePage {
     const isBonusWord = success && gameState.bonusWordsFound.length > prevBonusCount
     if (success) {
       soundManager.play(gameState.isLevelComplete ? SoundNames.LEVEL_COMPLETE : SoundNames.CORRECT_WORD)
+      hapticManager.play(gameState.isLevelComplete ? HapticNames.LEVEL_COMPLETE : HapticNames.CORRECT_WORD)
       this.lineFeedback = 'success'
+      if (this.showTutorial) {
+        gameState.closeTutorial(true)
+        this.showTutorial = false
+      }
     } else {
       soundManager.play(SoundNames.WRONG_WORD)
+      hapticManager.play(HapticNames.WRONG_WORD)
       this.lineFeedback = 'wrong'
     }
     this.drawLines()
@@ -683,6 +731,8 @@ export struct GamePage {
       const row: CrosswordCell[] = []
       for (let c = 0; c < gridCols; c++) {
         const cell = new CrosswordCell()
+        cell.row = r
+        cell.col = c
         if ((level.grid[r]?.[c] ?? '') !== '') {
           cell.isActive = true
           cell.letter = level.grid[r][c]
@@ -756,6 +806,20 @@ export struct GamePage {
     }, 1800)
   }
 
+  @Builder
+  private TutorialLetter(letter: string) {
+    Text(letter)
+      .fontSize(11)
+      .fontColor(AppColors.WHITE)
+      .fontWeight(FontWeight.Bold)
+      .width(24)
+      .height(24)
+      .textAlign(TextAlign.Center)
+      .backgroundColor('#243B74')
+      .borderRadius(12)
+      .border({ width: 1, color: AppColors.PRIMARY_GOLD })
+  }
+
   private showSuccessOverlay(): void {
     this.showSuccess = true
     setTimeout(() => {
@@ -813,10 +877,15 @@ export struct GamePage {
       return
     }
     this.lastHintTapMs = now
+    const revealedBefore = this.snapshotRevealedIndexes()
     this.clearFeedback()
     gameState.clearSelection()
-    gameState.useHint()
+    const didUseHint = gameState.useHint()
     this.refreshState()
+    if (didUseHint) {
+      hapticManager.play(HapticNames.HINT)
+      this.flashHintCells(this.findNewHintCellKeys(revealedBefore))
+    }
   }
 
   private isHintPoint(x: number, y: number): boolean {
@@ -832,6 +901,79 @@ export struct GamePage {
     this.feedbackLetterIds = []
     this.linePoints = []
     this.canvasContext.clearRect(0, 0, this.CANVAS_SIZE, this.CANVAS_SIZE)
+  }
+
+  private snapshotRevealedIndexes(): string[] {
+    const snapshot: string[] = []
+    for (let slotIndex = 0; slotIndex < this.wordSlots.length; slotIndex++) {
+      const slot = this.wordSlots[slotIndex]
+      for (let i = 0; i < slot.revealedIndexes.length; i++) {
+        snapshot.push(`${slotIndex}:${slot.revealedIndexes[i]}`)
+      }
+    }
+    return snapshot
+  }
+
+  private findNewHintCellKeys(revealedBefore: string[]): string[] {
+    const keys: string[] = []
+    for (let slotIndex = 0; slotIndex < gameState.wordSlots.length; slotIndex++) {
+      const slot = gameState.wordSlots[slotIndex]
+      for (let i = 0; i < slot.revealedIndexes.length; i++) {
+        const letterIndex = slot.revealedIndexes[i]
+        if (revealedBefore.indexOf(`${slotIndex}:${letterIndex}`) !== -1) {
+          continue
+        }
+        const row = slot.dir === 'H' ? slot.row : slot.row + letterIndex
+        const col = slot.dir === 'H' ? slot.col + letterIndex : slot.col
+        keys.push(`${row}:${col}`)
+      }
+    }
+    return keys
+  }
+
+  private flashHintCells(keys: string[]): void {
+    if (keys.length === 0) {
+      return
+    }
+    this.hintFlashSeq += 1
+    const seq = this.hintFlashSeq
+    this.hintFlashKeys = keys
+    this.hintFlashOn = true
+    setTimeout(() => {
+      if (seq !== this.hintFlashSeq) {
+        return
+      }
+      this.hintFlashOn = false
+    }, 720)
+    setTimeout(() => {
+      if (seq !== this.hintFlashSeq) {
+        return
+      }
+      this.hintFlashKeys = []
+    }, 900)
+  }
+
+  private isHintFlashCell(cell: CrosswordCell): boolean {
+    return this.hintFlashOn && this.hintFlashKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
+  }
+
+  private crosswordCellBg(cell: CrosswordCell): string {
+    if (this.isHintFlashCell(cell)) {
+      return AppColors.PRIMARY_GOLD
+    }
+    if (this.wrongFlash) {
+      return '#600020'
+    }
+    if (this.successFlashOn && this.successFlashSlotIndex === cell.slotIndex) {
+      return '#1DB954'
+    }
+    if (cell.isFound) {
+      return AppColors.SUCCESS_GREEN
+    }
+    if (cell.isLetterRevealed()) {
+      return AppColors.WORD_SLOT_FILLED
+    }
+    return AppColors.WORD_SLOT_EMPTY
   }
 
   private isFeedbackLetter(id: number): boolean {

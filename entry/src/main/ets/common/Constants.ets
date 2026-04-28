@@ -54,6 +54,7 @@ export class PageNames {
 
 export class Settings {
   static readonly SOUND_ENABLED_KEY: string = 'soundEnabled'
+  static readonly HAPTIC_ENABLED_KEY: string = 'hapticEnabled'
   static readonly IS_DARK_THEME_KEY: string = 'isDarkTheme'
 }
 

@@ -78,7 +78,11 @@ class SoundManager {
 
   release(): void {
     if (this.pool) {
-      this.pool.release()
+      try {
+        this.pool.release()
+      } catch (e) {
+        console.warn('[SoundManager] release failed: ' + JSON.stringify(e))
+      }
       this.pool = null
     }
     this.ids.clear()
