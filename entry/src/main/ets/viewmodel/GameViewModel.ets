@@ -122,8 +122,8 @@ export class GameState {
 
     this.currentLevel = level
     this.currentLevelId = levelId
-    AppStorage.set(CURRENT_LEVEL_KEY, levelId)
     this.resetLevelState(level)
+    AppStorage.set(CURRENT_LEVEL_KEY, levelId)
   }
 
   unlockNextLevel(): void {

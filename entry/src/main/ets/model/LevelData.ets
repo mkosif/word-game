@@ -5,6 +5,10 @@ export interface Hint {
   revealIndexes: number[]
 }
 
+export interface LevelLayout {
+  crosswordOffsetY: number
+}
+
 export interface Level {
   id: number
   difficulty: Difficulty
@@ -13,15 +17,21 @@ export interface Level {
   words: string[]
   bonusWords?: string[]
   hints: Hint[]
+  layout?: LevelLayout
 }
 
 export const MAX_UNLOCKED_KEY: string = 'maxUnlockedLevel'
 export const CURRENT_LEVEL_KEY: string = 'currentLevelId'
 
+export const DEFAULT_LEVEL_LAYOUT: LevelLayout = {
+  crosswordOffsetY: 30
+}
+
 export const LEVELS: Level[] = [
   {
     id: 1,
     difficulty: 'easy',
+    layout: { crosswordOffsetY: 8 },
     letters: ['A', 'E', 'T'],
     grid: [
       ['T', '',  '' ],
@@ -39,6 +49,7 @@ export const LEVELS: Level[] = [
   {
     id: 2,
     difficulty: 'medium',
+    layout: { crosswordOffsetY: 0 },
     letters: ['O', 'P', 'T', 'S'],
     grid: [
       ['S', 'T', 'O', 'P'],
@@ -56,6 +67,7 @@ export const LEVELS: Level[] = [
   {
     id: 3,
     difficulty: 'medium',
+    layout: { crosswordOffsetY: 10 },
     letters: ['E', 'A', 'R', 'D'],
     grid: [
       ['D', 'E', 'A', 'R'],
@@ -74,6 +86,7 @@ export const LEVELS: Level[] = [
   {
     id: 4,
     difficulty: 'medium',
+    layout: { crosswordOffsetY: 0 },
     letters: ['L', 'I', 'M', 'E', 'S'],
     grid: [
       ['',  'S', '',  '',  '' ],
@@ -93,6 +106,7 @@ export const LEVELS: Level[] = [
   {
     id: 5,
     difficulty: 'medium',
+    layout: { crosswordOffsetY: 0 },
     letters: ['P', 'L', 'A', 'N', 'E'],
     grid: [
       ['P', 'L', 'A', 'N', 'E'],
@@ -111,6 +125,7 @@ export const LEVELS: Level[] = [
   {
     id: 6,
     difficulty: 'medium',
+    layout: { crosswordOffsetY: 0 },
     letters: ['B', 'R', 'E', 'A', 'D'],
     grid: [
       ['',  '',  'B', '',  '' ],
@@ -130,6 +145,7 @@ export const LEVELS: Level[] = [
   {
     id: 7,
     difficulty: 'hard',
+    layout: { crosswordOffsetY: 10 },
     letters: ['O', 'R', 'A', 'N', 'G', 'E'],
     grid: [
       ['O', 'R', 'A', 'N', 'G', 'E'],
@@ -149,6 +165,7 @@ export const LEVELS: Level[] = [
   {
     id: 8,
     difficulty: 'hard',
+    layout: { crosswordOffsetY: 5 },
     letters: ['G', 'A', 'R', 'D', 'E', 'N'],
     grid: [
       ['G', 'A', 'R', 'D', 'E', 'N'],
@@ -167,6 +184,7 @@ export const LEVELS: Level[] = [
   {
     id: 9,
     difficulty: 'hard',
+    layout: { crosswordOffsetY: 10 },
     letters: ['S', 'I', 'L', 'E', 'N', 'T'],
     grid: [
       ['S', 'I', 'L', 'E', 'N', 'T'],
@@ -185,6 +203,7 @@ export const LEVELS: Level[] = [
   {
     id: 10,
     difficulty: 'expert',
+    layout: { crosswordOffsetY: 10 },
     letters: ['C', 'A', 'P', 'T', 'A', 'I', 'N'],
     grid: [
       ['C', 'A', 'P', 'T', 'A', 'I', 'N'],

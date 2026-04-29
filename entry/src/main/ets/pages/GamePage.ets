@@ -1,5 +1,6 @@
 import { AppColors, AppSizes, difficultyBgColor, GameLayout, PageNames } from '../common/Constants'
 import { GameState, gameState, LetterItem, WordSlot } from '../viewmodel/GameViewModel'
+import { CURRENT_LEVEL_KEY, DEFAULT_LEVEL_LAYOUT, LevelLayout } from '../model/LevelData'
 import { HintButton } from '../components/HintButton'
 import { BackButton } from '../components/BackButton'
 import { soundManager, SoundNames } from '../common/SoundManager'
@@ -49,6 +50,9 @@ class CrosswordRow {
 @Component
 export struct GamePage {
   @Consume('navPathStack') navPathStack: NavPathStack
+  @StorageLink(CURRENT_LEVEL_KEY)
+  @Watch('onActiveLevelChanged')
+  activeLevelId: number = 1
   @State letters: LetterItem[] = []
   @State currentWord: string = ''
   @State wordSlots: WordSlot[] = []
@@ -91,6 +95,7 @@ export struct GamePage {
   @State crosswordCellSize: number = 20
   @State crosswordFontSize: number = 13
   @State crosswordRevision: number = 0
+  @State crosswordOffsetY: number = DEFAULT_LEVEL_LAYOUT.crosswordOffsetY
   private pageEnterMs: number = 0
   private canvasSettings: RenderingContextSettings = new RenderingContextSettings(true)
   private canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.canvasSettings)
@@ -162,6 +167,7 @@ export struct GamePage {
     this.bonusWordsFound = gameState.bonusWordsFound.length
     this.bonusWordsTotal =
       gameState.currentLevel && gameState.currentLevel.bonusWords ? gameState.currentLevel.bonusWords.length : 0
+    this.syncLevelLayout()
     this.hintPosX = gameState.hintPos[0]
     this.hintPosY = gameState.hintPos[1]
     this.bonusPosX = gameState.bonusPos[0]
@@ -182,6 +188,36 @@ export struct GamePage {
       pos.push(this.letters[i].y)
     }
     this.letterPos = pos
+  }
+
+  onActiveLevelChanged(): void {
+    this.resetTransientUiState()
+    this.refreshState()
+  }
+
+  private resetTransientUiState(): void {
+    this.clearFeedback()
+    this.showSuccess = false
+    this.showError = false
+    this.wrongFlash = false
+    this.wrongShakeX = 0
+    this.successFlashSlotIndex = -1
+    this.successFlashOn = false
+    this.showBonusPopup = false
+    this.bonusPopupScale = 0
+    this.bonusPopupOpacity = 0
+    this.hintFlashSeq += 1
+    this.hintFlashKeys = []
+    this.hintFlashOn = false
+    this.hintFlashPhase = 0
+    this.pressedLetterId = ''
+    this.snapLetterId = ''
+    this.snapLetterScale = 1
+  }
+
+  private syncLevelLayout(): void {
+    const layout: LevelLayout = gameState.currentLevel?.layout ?? DEFAULT_LEVEL_LAYOUT
+    this.crosswordOffsetY = layout.crosswordOffsetY
   }
 
   drawBonusIndicator(): void {
@@ -488,9 +524,9 @@ export struct GamePage {
                       .height(this.crosswordCellSize)
                       .margin(1).opacity(0)
                   }
-                }, (cell: CrosswordCell) => this.crosswordCellKey(cell))
+                }, (cell: CrosswordCell) => `${this.activeLevelId}_${this.crosswordCellKey(cell)}`)
               }
-            }, (row: CrosswordRow) => row.id)
+            }, (row: CrosswordRow) => `${this.activeLevelId}_${row.id}`)
 
           }.backgroundColor('#000000DD')
           .borderRadius(16)
@@ -501,7 +537,7 @@ export struct GamePage {
             bottom: 8
           })
         }
-        .translate({ x: this.wrongShakeX, y: 30 })
+        .translate({ x: this.wrongShakeX, y: this.crosswordOffsetY })
         .animation({ duration: 60, curve: Curve.Linear })
         .width('100%')
         .height('100%')
@@ -550,7 +586,7 @@ export struct GamePage {
             }
           })
           .hitTestBehavior(HitTestMode.None)
-        }, (item: LetterItem) => item.id.toString())
+        }, (item: LetterItem) => `${this.activeLevelId}_${item.id.toString()}`)
 
         Canvas(this.canvasContext)
           .width(this.CANVAS_SIZE)
