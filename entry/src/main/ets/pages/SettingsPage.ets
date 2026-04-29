@@ -46,9 +46,14 @@ export struct SettingsPage {
             this.hapticEnabled = !this.hapticEnabled
           }})
 
-          this.ToggleRow({ icon: this.isDarkTheme ? '\uD83C\uDF19' : '\u2600', label: 'Dark', enabled: this.isDarkTheme, onTap: () => {
-            this.isDarkTheme = !this.isDarkTheme
-          }})
+          this.ToggleRow({
+            icon: this.isDarkTheme ? '\uD83C\uDF19' : '\u2600',
+            label: 'Dark',
+            enabled: this.isDarkTheme,
+            onTap: () => {
+              this.isDarkTheme = !this.isDarkTheme
+            }
+          })
 
           if (this.showResetConfirm) {
             Column() {

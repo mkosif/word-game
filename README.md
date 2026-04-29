@@ -1,5 +1,3 @@
-> **Note:** To access all shared projects, get information about environment setup, and view other guides, please visit [Explore-In-HMOS-Wearable Index](https://github.com/Explore-In-HMOS-Wearable/hmos-index).
-
 # Word Game Wearable
 
 A word puzzle game built for *HarmonyOS Next* smartwatches. Draw lines through letter circles to spell words hidden in a crossword grid.
