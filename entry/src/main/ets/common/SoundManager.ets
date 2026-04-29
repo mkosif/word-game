@@ -40,12 +40,12 @@ class SoundManager {
           this.ids.set(name, id)
           console.info(`[SoundManager] Loaded ${name} -> id=${id}`)
         } catch (e) {
-          console.warn(`[SoundManager] Failed to load: ${name} ` + JSON.stringify(e))
+          console.warn(`[SoundManager] Failed to load: ${name} ${JSON.stringify(e)}`)
         }
       }
     } catch (e) {
-      // SoundPool not available on this device — game continues without sound
-      console.error(`[SoundManager] SoundPool init failed: ` + JSON.stringify(e))
+      // SoundPool is optional, so gameplay continues without sound.
+      console.error(`[SoundManager] SoundPool init failed: ${JSON.stringify(e)}`)
     }
   }
 
@@ -81,7 +81,7 @@ class SoundManager {
       try {
         this.pool.release()
       } catch (e) {
-        console.warn('[SoundManager] release failed: ' + JSON.stringify(e))
+        console.warn(`[SoundManager] release failed: ${JSON.stringify(e)}`)
       }
       this.pool = null
     }

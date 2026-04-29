@@ -43,12 +43,12 @@ class CrosswordCell {
 
 class CrosswordRow {
   cells: CrosswordCell[] = []
+  id: string = ''
 }
 
 @Component
 export struct GamePage {
   @Consume('navPathStack') navPathStack: NavPathStack
-  @State levelId: number = 1
   @State letters: LetterItem[] = []
   @State currentWord: string = ''
   @State wordSlots: WordSlot[] = []
@@ -89,7 +89,6 @@ export struct GamePage {
   @State crosswordRows: CrosswordRow[] = []
   @State crosswordCellSize: number = 20
   @State crosswordFontSize: number = 13
-  @State foundWordCount: number = 0
   @State crosswordRevision: number = 0
   private pageEnterMs: number = 0
   private canvasSettings: RenderingContextSettings = new RenderingContextSettings(true)
@@ -142,7 +141,6 @@ export struct GamePage {
   }
 
   refreshState(): void {
-    this.levelId = gameState.currentLevelId
     this.currentWord = gameState.currentWord
     this.showError = gameState.showError
     this.showTutorial = gameState.showTutorial
@@ -169,13 +167,6 @@ export struct GamePage {
     this.shufflePosY = gameState.shufflePos[1]
     this.drawBonusIndicator()
     this.syncLetterPos()
-    let fc = 0
-    for (let i = 0; i < this.wordSlots.length; i++) {
-      if (this.wordSlots[i].isFound) {
-        fc++
-      }
-    }
-    this.foundWordCount = fc
     this.crosswordRows = this.buildCrosswordGrid()
     this.crosswordRevision += 1
     this.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
@@ -455,7 +446,7 @@ export struct GamePage {
       Stack() { // Layer 1: Crossword grid
         Column() {
           Column() {
-            ForEach(this.crosswordRows, (row: CrosswordRow, ri: number) => {
+            ForEach(this.crosswordRows, (row: CrosswordRow) => {
               Row() {
                 ForEach(row.cells, (cell: CrosswordCell, ci: number) => {
                   if (cell.isActive) {
@@ -496,14 +487,8 @@ export struct GamePage {
                   }
                 }, (cell: CrosswordCell) => this.crosswordCellKey(cell))
               }
-            }, (row: CrosswordRow, ri: number) => `r${this.crosswordRevision}_${ri}`)
+            }, (row: CrosswordRow) => row.id)
 
-            Text(this.currentWord)
-              .fontSize(18)
-              .fontColor(this.showError ? '#FF5252' : AppColors.PRIMARY_GOLD)
-              .fontWeight(FontWeight.Bold)
-              .height(26)
-              .margin({ top: 6 })
           }.backgroundColor('#000000DD')
           .borderRadius(16)
           .padding({
@@ -513,7 +498,7 @@ export struct GamePage {
             bottom: 8
           })
         }
-        .translate({ x: this.wrongShakeX, y: 14 })
+        .translate({ x: this.wrongShakeX, y: 30 })
         .animation({ duration: 60, curve: Curve.Linear })
         .width('100%')
         .height('100%')
@@ -571,6 +556,15 @@ export struct GamePage {
           .onReady(() => {
             this.drawLines()
           }) // Layer 3: All screen
+        Text(this.currentWord)
+          .width(130)
+          .height(26)
+          .position({ x: 51.5, y: 103.5 })
+          .fontSize(18)
+          .fontColor(this.showError ? '#FF5252' : AppColors.PRIMARY_GOLD)
+          .fontWeight(FontWeight.Bold)
+          .textAlign(TextAlign.Center)
+          .hitTestBehavior(HitTestMode.None)
         BackButton({ btnSize: 28, bgColor: '#00000066' }).position({ x: 66, y: 18 }) // Layer 4: Back button
         Stack() { // Layer 5: Hint button
           HintButton({
@@ -839,6 +833,7 @@ export struct GamePage {
     const rows: CrosswordRow[] = []
     for (let r = 0; r < gridRows; r++) {
       const crossRow = new CrosswordRow()
+      crossRow.id = `row_${r}`
       for (let c = 0; c < gridCols; c++) {
         crossRow.cells.push(full[r][c])
       }

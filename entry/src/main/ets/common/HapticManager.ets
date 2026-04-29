@@ -38,10 +38,10 @@ class HapticManager {
       }, {
         usage: 'touch'
       }).catch((error: Error) => {
-        console.warn('[HapticManager] vibration failed: ' + JSON.stringify(error))
+        console.warn(`[HapticManager] vibration failed: ${JSON.stringify(error)}`)
       })
     } catch (error) {
-      console.warn('[HapticManager] vibration unavailable: ' + JSON.stringify(error))
+      console.warn(`[HapticManager] vibration unavailable: ${JSON.stringify(error)}`)
     }
   }
 

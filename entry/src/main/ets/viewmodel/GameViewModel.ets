@@ -1,6 +1,6 @@
 import { CURRENT_LEVEL_KEY, getLevelById, Level, MAX_UNLOCKED_KEY } from '../model/LevelData'
 import { AppSizes, GameLayout } from '../common/Constants'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { secureRandomNumber } from '../utils/SecureRandom'
 
 interface WordPos {
   row: number
@@ -15,19 +15,6 @@ class HintCandidate {
   constructor(slotIndex: number, letterIndex: number) {
     this.slotIndex = slotIndex
     this.letterIndex = letterIndex
-  }
-}
-
-function getRandomValue(): number {
-  try {
-    const random = cryptoFramework.createRandom();
-    const randomBytes = random.generateRandomSync(4);
-    const view = new DataView(randomBytes.data.buffer);
-    const randomUint32 = view.getUint32(0, false);
-    return randomUint32 / 4294967296;
-  } catch (error) {
-    console.error('Random generation error:', error);
-    return Math.random()
   }
 }
 
@@ -165,7 +152,7 @@ export class GameState {
       return false
     }
 
-    const selectedIndex = Math.floor(getRandomValue() * candidates.length)
+    const selectedIndex = Math.floor(secureRandomNumber() * candidates.length)
     const selected = candidates[selectedIndex]
     this.wordSlots[selected.slotIndex].revealedIndexes.push(selected.letterIndex)
     this.hintCount -= 1
@@ -183,7 +170,7 @@ export class GameState {
     }
     const origX0 = positions[0][0]
     for (let i = positions.length - 1; i > 0; i--) {
-      const j = Math.floor(getRandomValue() * (i + 1))
+      const j = Math.floor(secureRandomNumber() * (i + 1))
       const tmp = positions[i]
       positions[i] = positions[j]
       positions[j] = tmp
@@ -413,11 +400,7 @@ export class GameState {
   }
 
   private updateCurrentWord(): void {
-    let word = ''
-    for (let i = 0; i < this.selectedLetters.length; i++) {
-      word += this.selectedLetters[i].letter
-    }
-    this.currentWord = word
+    this.currentWord = this.selectedLetters.map((item: LetterItem) => item.letter).join('')
   }
 
   private isBonusWord(word: string): boolean {

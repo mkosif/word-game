@@ -2,7 +2,7 @@ import { AppColors, difficultyBgColor } from '../common/Constants'
 import { getTotalLevels } from '../model/LevelData'
 import { gameState } from '../viewmodel/GameViewModel'
 import { StatsStore } from '../components/StatsStore'
-import { cryptoFramework } from '@kit.CryptoArchitectureKit'
+import { secureRandomNumber } from '../utils/SecureRandom'
 
 class ConfettiPiece {
   x: number = 0
@@ -25,19 +25,6 @@ class ConfettiPiece {
     this.life = life
     this.rot = 0
     this.color = color
-  }
-}
-
-function getRandomValue(): number {
-  try {
-    const random = cryptoFramework.createRandom();
-    const randomBytes = random.generateRandomSync(4);
-    const view = new DataView(randomBytes.data.buffer);
-    const randomUint32 = view.getUint32(0, false);
-    return randomUint32 / 4294967296;
-  } catch (error) {
-    console.error('Random generation error:', error);
-    return Math.random()
   }
 }
 
@@ -250,16 +237,16 @@ export struct WinPage {
     const colors: string[] = [AppColors.PRIMARY_GOLD, AppColors.SUCCESS_GREEN, '#FF5A5F', '#4DA3FF', '#FFFFFF']
 
     for (let i = 0; i < 28; i++) {
-      const angle = getRandomValue() * Math.PI * 2
-      const speed = 1.1 + getRandomValue() * 2.1
-      const x = 100 + (getRandomValue() - 0.5) * 18
-      const y = 74 + (getRandomValue() - 0.5) * 10
+      const angle = secureRandomNumber() * Math.PI * 2
+      const speed = 1.1 + secureRandomNumber() * 2.1
+      const x = 100 + (secureRandomNumber() - 0.5) * 18
+      const y = 74 + (secureRandomNumber() - 0.5) * 10
       const vx = Math.cos(angle) * speed
       const vy = Math.sin(angle) * speed - 0.9
-      const size = 2.5 + getRandomValue() * 3.5
-      const vr = (getRandomValue() - 0.5) * 10
-      const life = 42 + Math.floor(getRandomValue() * 24)
-      const c = colors[Math.floor(getRandomValue() * colors.length)]
+      const size = 2.5 + secureRandomNumber() * 3.5
+      const vr = (secureRandomNumber() - 0.5) * 10
+      const life = 42 + Math.floor(secureRandomNumber() * 24)
+      const c = colors[Math.floor(secureRandomNumber() * colors.length)]
       this.confettiParts.push(new ConfettiPiece(x, y, vx, vy, size, vr, life, c))
     }
 
@@ -300,7 +287,7 @@ export struct WinPage {
         continue
       }
 
-      p.vx += (getRandomValue() - 0.5) * 0.05
+      p.vx += (secureRandomNumber() - 0.5) * 0.05
       p.vy += 0.04
       p.x += p.vx
       p.y += p.vy
