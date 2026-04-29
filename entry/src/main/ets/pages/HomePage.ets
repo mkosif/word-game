@@ -68,6 +68,7 @@ export struct HomePage {
       Stack() {
         PillButton(`LEVEL ${this.currentLevelId.toString()}`, AppColors.PRIMARY_GOLD, AppColors.BACKGROUND_DARK, 150, 42)
       }
+      .translate({ y: -15 })
       .scale({ x: this.buttonScale, y: this.buttonScale }).onClick(() => {
         this.getUIContext().animateTo({ duration: 100 }, () => {
           this.buttonScale = 0.9

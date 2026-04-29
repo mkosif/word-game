@@ -1,5 +1,4 @@
 import { AppColors } from '../common/Constants'
-import { BackButton } from '../components/BackButton'
 import { StatsStore } from '../components/StatsStore'
 
 @Component
@@ -38,16 +37,11 @@ export struct StatisticsPage {
       Scroll() {
         Column() {
           Row() {
-            BackButton({ btnSize: 26 })
-              .margin({ right: 6 })
-
             Text('Statistics')
               .fontSize(18)
               .fontColor(AppColors.PRIMARY_GOLD)
               .fontWeight(FontWeight.Bold)
               .layoutWeight(1)
-
-            Text('').width(26)
           }
           .width('84%')
           .alignItems(VerticalAlign.Center)

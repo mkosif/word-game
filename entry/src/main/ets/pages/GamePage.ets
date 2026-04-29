@@ -85,6 +85,7 @@ export struct GamePage {
   @State hintFlashKeys: string[] = []
   @State hintFlashOn: boolean = false
   @State hintFlashPhase: number = 0
+  @State revealedCellKeys: string[] = []
   @State bgColor: string = AppColors.BACKGROUND_DARK
   @State crosswordRows: CrosswordRow[] = []
   @State crosswordCellSize: number = 20
@@ -98,6 +99,7 @@ export struct GamePage {
   private ignoreCurrentPan: boolean = false
   private lastHintTapMs: number = 0
   private hintFlashSeq: number = 0
+  private revealedLevelId: number = 0
   private lineAnimTimerId: number = 0
   private readonly LETTER_CENTER: number = GameLayout.LETTER_SIZE / 2
   private readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
@@ -154,6 +156,7 @@ export struct GamePage {
       newSlots.push(gameState.wordSlots[i].clone())
     }
     this.wordSlots = newSlots
+    this.syncRevealedCellKeys()
     this.updateLinePoints()
     this.hintCount = gameState.hintCount
     this.bonusWordsFound = gameState.bonusWordsFound.length
@@ -1018,10 +1021,41 @@ export struct GamePage {
     return keys
   }
 
+  private syncRevealedCellKeys(): void {
+    if (this.revealedLevelId !== gameState.currentLevelId) {
+      this.revealedLevelId = gameState.currentLevelId
+      this.revealedCellKeys = []
+    }
+
+    const keys = this.revealedCellKeys.slice()
+    for (let slotIndex = 0; slotIndex < this.wordSlots.length; slotIndex++) {
+      const slot = this.wordSlots[slotIndex]
+      for (let i = 0; i < slot.revealedIndexes.length; i++) {
+        const letterIndex = slot.revealedIndexes[i]
+        const row = slot.dir === 'H' ? slot.row : slot.row + letterIndex
+        const col = slot.dir === 'H' ? slot.col + letterIndex : slot.col
+        this.addUniqueKey(keys, `${row}:${col}`)
+      }
+    }
+    this.revealedCellKeys = keys
+  }
+
+  private addUniqueKey(keys: string[], key: string): void {
+    if (keys.indexOf(key) === -1) {
+      keys.push(key)
+    }
+  }
+
   private flashHintCells(keys: string[]): void {
     if (keys.length === 0) {
       return
     }
+    const revealedKeys = this.revealedCellKeys.slice()
+    for (let i = 0; i < keys.length; i++) {
+      this.addUniqueKey(revealedKeys, keys[i])
+    }
+    this.revealedCellKeys = revealedKeys
+
     this.hintFlashSeq += 1
     const seq = this.hintFlashSeq
     this.hintFlashKeys = keys
@@ -1045,6 +1079,7 @@ export struct GamePage {
       }
       this.hintFlashOn = false
       this.hintFlashPhase = 0
+      this.refreshState()
     }, 820)
     setTimeout(() => {
       if (seq !== this.hintFlashSeq) {
@@ -1058,16 +1093,18 @@ export struct GamePage {
     return this.hintFlashOn && this.hintFlashKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
   }
 
+  private isRevealedCell(cell: CrosswordCell): boolean {
+    return cell.isLetterRevealed() || this.revealedCellKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
+  }
+
   private crosswordCellKey(cell: CrosswordCell): string {
-    return `cell_${this.crosswordRevision}_${cell.row}_${cell.col}_${cell.slotIndex}_${cell.letter}_${this.crosswordCellText(cell)}_${cell.isFound ? 1 :
-      0}_${cell.isRevealed ? 1 : 0}_${this.isHintFlashCell(cell) ? 1 : 0}_${this.hintFlashPhase}_${cell.revealedIndexes.join(',')}`
+    // Only persistent state drives remounts. Flash animation uses .animation() in-place
+    // so the cell is never unmounted during the hint sequence, keeping revealed letters visible.
+    return `cell_${cell.row}_${cell.col}_${cell.slotIndex}_${cell.letter}_${cell.isFound ? 1 : 0}_${cell.isRevealed ? 1 : 0}_${cell.revealedIndexes.join(',')}`
   }
 
   private crosswordCellText(cell: CrosswordCell): string {
-    if (this.isHintFlashCell(cell) && this.hintFlashPhase === 1) {
-      return ''
-    }
-    if (cell.isFound || this.isCellInFoundSlot(cell) || cell.isLetterRevealed() || this.isHintFlashCell(cell)) {
+    if (cell.isFound || this.isCellInFoundSlot(cell) || this.isRevealedCell(cell) || this.isHintFlashCell(cell)) {
       return cell.letter
     }
     return ''
@@ -1107,7 +1144,7 @@ export struct GamePage {
     if (cell.isFound || this.isCellInFoundSlot(cell)) {
       return AppColors.SUCCESS_GREEN
     }
-    if (cell.isLetterRevealed()) {
+    if (this.isRevealedCell(cell)) {
       return AppColors.WORD_SLOT_FILLED
     }
     return AppColors.WORD_SLOT_EMPTY
@@ -1117,14 +1154,14 @@ export struct GamePage {
     if (this.isHintFlashCell(cell)) {
       return this.hintFlashPhase === 1 ? 3 : 2
     }
-    return cell.isLetterRevealed() && !cell.isFound ? 1 : 0
+    return this.isRevealedCell(cell) && !cell.isFound ? 1 : 0
   }
 
   private crosswordCellBorderColor(cell: CrosswordCell): ResourceColor {
     if (this.isHintFlashCell(cell)) {
       return AppColors.STAR_GOLD
     }
-    if (cell.isLetterRevealed() && !cell.isFound) {
+    if (this.isRevealedCell(cell) && !cell.isFound) {
       return '#FFFFFF33'
     }
     return Color.Transparent
