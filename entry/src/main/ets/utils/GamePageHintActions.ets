@@ -71,6 +71,7 @@ function flashHintCells(host: GamePageHost, keys: string[]): void {
   host.hintFlashKeys = keys
   host.hintFlashOn = true
   host.hintFlashPhase = 1
+  host.requestRender()
   queueHintPhase(host, seq, 2, 140)
   queueHintPhase(host, seq, 3, 560)
   queueHintEnd(host, seq)
@@ -82,6 +83,7 @@ function queueHintPhase(host: GamePageHost, seq: number, phase: number, delay: n
       return
     }
     host.hintFlashPhase = phase
+    host.requestRender()
   }, delay)
 }
 
@@ -92,6 +94,7 @@ function queueHintEnd(host: GamePageHost, seq: number): void {
     }
     host.hintFlashOn = false
     host.hintFlashPhase = 0
+    host.requestRender()
     refreshGamePageState(host)
   }, 820)
   setTimeout(() => {
@@ -99,5 +102,6 @@ function queueHintEnd(host: GamePageHost, seq: number): void {
       return
     }
     host.hintFlashKeys = []
+    host.requestRender()
   }, 900)
 }

@@ -24,6 +24,7 @@ export function submitGamePageWord(host: GamePageHost): void {
   refreshGamePageState(host)
   host.feedbackLetterIds = submittedLetterIds
   host.linePoints = submittedPoints
+  host.requestRender()
   const isBonusWord = success && gameState.bonusWordsFound.length > prevBonusCount
   updateSubmitFeedback(host, success)
   drawGamePageLines(host)
@@ -45,8 +46,10 @@ export function shuffleGamePageLetters(host: GamePageHost): void {
   hapticManager.play(HapticNames.SHUFFLE)
   host.canvasContext.clearRect(0, 0, host.CANVAS_SIZE, host.CANVAS_SIZE)
   host.letters = cloneLetters(gameState.letters)
+  host.requestRender()
   host.getUIContext().animateTo({ duration: 420, curve: Curve.EaseInOut }, () => {
     host.letterPos = buildLetterPositions(gameState.letters)
+    host.requestRender()
   })
 }
 
@@ -59,11 +62,13 @@ function updateSubmitFeedback(host: GamePageHost, success: boolean): void {
       gameState.closeTutorial(true)
       host.showTutorial = false
     }
+    host.requestRender()
     return
   }
   soundManager.play(SoundNames.WRONG_WORD)
   hapticManager.play(HapticNames.WRONG_WORD)
   host.lineFeedback = 'wrong'
+  host.requestRender()
 }
 
 function handleSuccessfulWord(host: GamePageHost, prevFound: boolean[]): void {
@@ -72,9 +77,11 @@ function handleSuccessfulWord(host: GamePageHost, prevFound: boolean[]): void {
     StatsStore.addWordsFound(1)
     host.successFlashSlotIndex = newIndex
     host.successFlashOn = true
+    host.requestRender()
     setTimeout(() => {
       host.successFlashOn = false
       host.successFlashSlotIndex = -1
+      host.requestRender()
     }, 360)
   }
   setTimeout(() => {
@@ -117,22 +124,27 @@ function showGamePageBonusPopupAnimation(host: GamePageHost): void {
   host.showBonusPopup = true
   host.bonusPopupScale = 0
   host.bonusPopupOpacity = 0
+  host.requestRender()
   host.getUIContext().animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
     host.bonusPopupScale = 1.15
     host.bonusPopupOpacity = 1
+    host.requestRender()
   })
   setTimeout(() => {
     host.getUIContext().animateTo({ duration: 150, curve: Curve.EaseIn }, () => {
       host.bonusPopupScale = 1.0
+      host.requestRender()
     })
   }, 250)
   setTimeout(() => {
     host.getUIContext().animateTo({ duration: 280, curve: Curve.EaseIn }, () => {
       host.bonusPopupScale = 0.8
       host.bonusPopupOpacity = 0
+      host.requestRender()
     })
     setTimeout(() => {
       host.showBonusPopup = false
+      host.requestRender()
     }, 280)
   }, 1500)
   setTimeout(() => {
@@ -144,8 +156,10 @@ function showGamePageBonusPopupAnimation(host: GamePageHost): void {
 
 function showGamePageSuccessOverlay(host: GamePageHost): void {
   host.showSuccess = true
+  host.requestRender()
   setTimeout(() => {
     host.showSuccess = false
+    host.requestRender()
     if (gameState.isLevelComplete) {
       host.navPathStack.pushPathByName(PageNames.WIN, null)
     }
@@ -157,21 +171,27 @@ function showGamePageErrorAnimation(host: GamePageHost): void {
   host.wrongFlash = true
   const delay = 45
   host.wrongShakeX = 7
+  host.requestRender()
   setTimeout(() => {
     host.wrongShakeX = -7
+    host.requestRender()
   }, delay)
   setTimeout(() => {
     host.wrongShakeX = 5
+    host.requestRender()
   }, delay * 2)
   setTimeout(() => {
     host.wrongShakeX = -3
+    host.requestRender()
   }, delay * 3)
   setTimeout(() => {
     host.wrongShakeX = 0
+    host.requestRender()
   }, delay * 4)
   setTimeout(() => {
     host.wrongFlash = false
     host.showError = false
+    host.requestRender()
   }, 260)
   setTimeout(() => {
     gameState.hideError()

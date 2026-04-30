@@ -5,6 +5,7 @@ import { CURRENT_LEVEL_KEY, DEFAULT_LEVEL_LAYOUT } from '../model/LevelData'
 import { LetterItem, WordSlot, gameState } from '../viewmodel/GameViewModel'
 import { CrosswordCell, CrosswordRow, LinePoint } from '../model/GamePageModels'
 import { drawGamePageBonusIndicator, drawGamePageLines } from '../utils/GamePageDrawing'
+import { leaveGamePage, onGameTouchEnd, onGameTouchMove, onGameTouchStart, prepareGamePage, refreshGamePageState, resetGamePageTransientUiState, updateGamePagePressedByPos } from '../utils/GamePageStateActions'
 import {
   crosswordCellAnimDuration,
   crosswordCellBg,
@@ -22,7 +23,6 @@ import {
   letterTextColor
 } from '../utils/GamePageCrosswordStyles'
 import { handleGamePageHintTap, isGamePageHintPoint } from '../utils/GamePageHintActions'
-import * as gamePageStateActions from '../utils/GamePageStateActions'
 import { shuffleGamePageLetters, submitGamePageWord } from '../utils/GamePageWordActions'
 
 @Component
@@ -31,48 +31,49 @@ export struct GamePage {
   @StorageLink(CURRENT_LEVEL_KEY)
   @Watch('onActiveLevelChanged')
   activeLevelId: number = 1
-  @State letters: LetterItem[] = []
-  @State currentWord: string = ''
-  @State wordSlots: WordSlot[] = []
-  @State showError: boolean = false
-  @State showSuccess: boolean = false
+  @State renderTick: number = 0
+  letters: LetterItem[] = []
+  currentWord: string = ''
+  wordSlots: WordSlot[] = []
+  showError: boolean = false
+  showSuccess: boolean = false
   linePoints: LinePoint[] = []
   currentTouchX: number = 0
   currentTouchY: number = 0
   isDragging: boolean = false
-  @State hintCount: number = 3
-  @State bonusWordsFound: number = 0
-  @State bonusWordsTotal: number = 0
-  @State showTutorial: boolean = false
-  @State hintPosX: number = 0
-  @State hintPosY: number = 0
-  @State bonusPosX: number = 0
-  @State bonusPosY: number = 0
-  @State shufflePosX: number = 0
-  @State shufflePosY: number = 0
-  @State letterPos: number[] = []
-  @State pressedLetterId: string = ''
-  @State snapLetterId: string = ''
-  @State snapLetterScale: number = 1
-  @State wrongFlash: boolean = false
-  @State wrongShakeX: number = 0
-  @State successFlashSlotIndex: number = -1
-  @State successFlashOn: boolean = false
-  @State showBonusPopup: boolean = false
-  @State bonusWordFound: string = ''
-  @State bonusPopupScale: number = 0
-  @State bonusPopupOpacity: number = 0
-  @State lineFeedback: string = 'normal'
-  @State feedbackLetterIds: number[] = []
-  @State hintFlashKeys: string[] = []
-  @State hintFlashOn: boolean = false
-  @State hintFlashPhase: number = 0
-  @State revealedCellKeys: string[] = []
-  @State bgColor: string = AppColors.BACKGROUND_DARK
-  @State crosswordRows: CrosswordRow[] = []
-  @State crosswordCellSize: number = 20
-  @State crosswordFontSize: number = 13
-  @State crosswordOffsetY: number = DEFAULT_LEVEL_LAYOUT.crosswordOffsetY
+  hintCount: number = 3
+  bonusWordsFound: number = 0
+  bonusWordsTotal: number = 0
+  showTutorial: boolean = false
+  hintPosX: number = 0
+  hintPosY: number = 0
+  bonusPosX: number = 0
+  bonusPosY: number = 0
+  shufflePosX: number = 0
+  shufflePosY: number = 0
+  letterPos: number[] = []
+  pressedLetterId: string = ''
+  snapLetterId: string = ''
+  snapLetterScale: number = 1
+  wrongFlash: boolean = false
+  wrongShakeX: number = 0
+  successFlashSlotIndex: number = -1
+  successFlashOn: boolean = false
+  showBonusPopup: boolean = false
+  bonusWordFound: string = ''
+  bonusPopupScale: number = 0
+  bonusPopupOpacity: number = 0
+  lineFeedback: string = 'normal'
+  feedbackLetterIds: number[] = []
+  hintFlashKeys: string[] = []
+  hintFlashOn: boolean = false
+  hintFlashPhase: number = 0
+  revealedCellKeys: string[] = []
+  bgColor: string = AppColors.BACKGROUND_DARK
+  crosswordRows: CrosswordRow[] = []
+  crosswordCellSize: number = 20
+  crosswordFontSize: number = 13
+  crosswordOffsetY: number = DEFAULT_LEVEL_LAYOUT.crosswordOffsetY
   pageEnterMs: number = 0
   private canvasSettings: RenderingContextSettings = new RenderingContextSettings(true)
   canvasContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.canvasSettings)
@@ -87,6 +88,10 @@ export struct GamePage {
   readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
   readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD + 4
 
+  requestRender(): void {
+    this.renderTick += 1
+  }
+
   private letterPosById(id: number): number[] {
     for (let i = 0; i < this.letters.length; i++) {
       if (this.letters[i].id === id) {
@@ -97,21 +102,26 @@ export struct GamePage {
   }
 
   aboutToAppear(): void {
-    gamePageStateActions.prepareGamePage(this)
+    prepareGamePage(this)
   }
 
   aboutToDisappear(): void {
-    gamePageStateActions.leaveGamePage(this)
+    leaveGamePage(this)
   }
 
   onActiveLevelChanged(): void {
-    gamePageStateActions.resetGamePageTransientUiState(this)
-    gamePageStateActions.refreshGamePageState(this)
+    resetGamePageTransientUiState(this)
+    refreshGamePageState(this)
   }
 
   build() {
     NavDestination() {
       Stack() {
+        Text(this.renderTick.toString())
+          .width(0)
+          .height(0)
+          .opacity(0)
+
         Column() {
           Column() {
             ForEach(this.crosswordRows, (row: CrosswordRow) => {
@@ -208,9 +218,11 @@ export struct GamePage {
           .onTouch((event: TouchEvent) => {
             if (event.type === TouchType.Down) {
               this.pressedLetterId = item.id.toString()
+              this.requestRender()
             }
             if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
               this.pressedLetterId = ''
+              this.requestRender()
             }
           })
           .hitTestBehavior(HitTestMode.None)
@@ -369,7 +381,7 @@ export struct GamePage {
                     .fontWeight(FontWeight.Bold)
                 }.onClick(() => {
                   gameState.closeTutorial(true)
-                  gamePageStateActions.refreshGamePageState(this)
+                  refreshGamePageState(this)
                 })
               }
               .backgroundColor(Color.Transparent)
@@ -399,8 +411,8 @@ export struct GamePage {
                 return
               }
               this.ignoreCurrentPan = false
-              gamePageStateActions.updateGamePagePressedByPos(this, finger.localX, finger.localY)
-              gamePageStateActions.onGameTouchStart(this, finger.localX, finger.localY)
+              updateGamePagePressedByPos(this, finger.localX, finger.localY)
+              onGameTouchStart(this, finger.localX, finger.localY)
             }
           })
           .onActionUpdate((event: GestureEvent) => {
@@ -409,8 +421,8 @@ export struct GamePage {
             }
             if (event.fingerList.length > 0) {
               const finger = event.fingerList[0]
-              gamePageStateActions.updateGamePagePressedByPos(this, finger.localX, finger.localY)
-              gamePageStateActions.onGameTouchMove(this, finger.localX, finger.localY)
+              updateGamePagePressedByPos(this, finger.localX, finger.localY)
+              onGameTouchMove(this, finger.localX, finger.localY)
             }
           })
           .onActionEnd(() => {
@@ -419,7 +431,8 @@ export struct GamePage {
               return
             }
             this.pressedLetterId = ''
-            if (gamePageStateActions.onGameTouchEnd(this)) {
+            this.requestRender()
+            if (onGameTouchEnd(this)) {
               submitGamePageWord(this)
             }
           })
@@ -440,7 +453,7 @@ export struct GamePage {
     .backgroundColor(AppColors.BACKGROUND_DARK)
     .onBackPressed(() => true)
     .onShown(() => {
-      gamePageStateActions.refreshGamePageState(this)
+      refreshGamePageState(this)
     })
   }
 }

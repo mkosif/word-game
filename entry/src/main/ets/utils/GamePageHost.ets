@@ -57,5 +57,6 @@ export interface GamePageHost {
   readonly LETTER_CENTER: number
   readonly CANVAS_SIZE: number
   readonly TOUCH_THRESHOLD: number
+  requestRender(): void
   getUIContext(): UIContext
 }

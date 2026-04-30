@@ -68,10 +68,12 @@ export function refreshGamePageState(host: GamePageHost): void {
   syncGamePageLetterPos(host)
   syncCrosswordGrid(host)
   host.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
+  host.requestRender()
 }
 
 export function syncGamePageLetterPos(host: GamePageHost): void {
   host.letterPos = buildLetterPositions(host.letters)
+  host.requestRender()
 }
 
 export function resetGamePageTransientUiState(host: GamePageHost): void {
@@ -92,6 +94,7 @@ export function resetGamePageTransientUiState(host: GamePageHost): void {
   host.pressedLetterId = ''
   host.snapLetterId = ''
   host.snapLetterScale = 1
+  host.requestRender()
 }
 
 export function onGameTouchStart(host: GamePageHost, x: number, y: number): void {
@@ -106,6 +109,7 @@ export function onGameTouchStart(host: GamePageHost, x: number, y: number): void
     selectGameLetter(host, letter)
   }
   drawGamePageLines(host)
+  host.requestRender()
 }
 
 export function onGameTouchMove(host: GamePageHost, x: number, y: number): void {
@@ -119,18 +123,21 @@ export function onGameTouchMove(host: GamePageHost, x: number, y: number): void 
     handleMovedLetter(host, letter)
   }
   drawGamePageLines(host)
+  host.requestRender()
 }
 
 export function onGameTouchEnd(host: GamePageHost): boolean {
   host.isDragging = false
   stopLineAnimationLoop(host)
   drawGamePageLines(host)
+  host.requestRender()
   if (host.currentWord.length >= GameLayout.MIN_WORD_LENGTH) {
     return true
   }
   gameState.clearSelection()
   refreshGamePageState(host)
   host.canvasContext.clearRect(0, 0, host.CANVAS_SIZE, host.CANVAS_SIZE)
+  host.requestRender()
   return false
 }
 
@@ -145,8 +152,10 @@ export function playLetterSnap(host: GamePageHost, id: number): void {
   const key = id.toString()
   host.snapLetterId = key
   host.snapLetterScale = 1.08
+  host.requestRender()
   host.getUIContext().animateTo({ duration: 70, curve: Curve.EaseOut }, () => {
     host.snapLetterScale = 1.14
+    host.requestRender()
   })
   setTimeout(() => {
     if (host.snapLetterId !== key) {
@@ -154,6 +163,7 @@ export function playLetterSnap(host: GamePageHost, id: number): void {
     }
     host.getUIContext().animateTo({ duration: 90, curve: Curve.EaseIn }, () => {
       host.snapLetterScale = 1.03
+      host.requestRender()
     })
   }, 75)
   setTimeout(() => {
@@ -162,11 +172,13 @@ export function playLetterSnap(host: GamePageHost, id: number): void {
     }
     host.getUIContext().animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
       host.snapLetterScale = 1
+      host.requestRender()
     })
   }, 170)
   setTimeout(() => {
     if (host.snapLetterId === key) {
       host.snapLetterId = ''
+      host.requestRender()
     }
   }, 285)
 }
@@ -181,10 +193,12 @@ export function updateGamePagePressedByPos(host: GamePageHost, x: number, y: num
     const dy = y - cy
     if ((dx * dx + dy * dy) <= (hit * hit)) {
       host.pressedLetterId = host.letters[i].id.toString()
+      host.requestRender()
       return
     }
   }
   host.pressedLetterId = ''
+  host.requestRender()
 }
 
 export function clearGamePageFeedback(host: GamePageHost): void {
@@ -192,6 +206,7 @@ export function clearGamePageFeedback(host: GamePageHost): void {
   host.feedbackLetterIds = []
   host.linePoints = []
   host.canvasContext.clearRect(0, 0, host.CANVAS_SIZE, host.CANVAS_SIZE)
+  host.requestRender()
 }
 
 export function addUniqueKey(keys: string[], key: string): void {
