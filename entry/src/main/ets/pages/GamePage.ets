@@ -22,16 +22,7 @@ import {
   letterTextColor
 } from '../utils/GamePageCrosswordStyles'
 import { handleGamePageHintTap, isGamePageHintPoint } from '../utils/GamePageHintActions'
-import {
-  leaveGamePage,
-  onGameTouchEnd,
-  onGameTouchMove,
-  onGameTouchStart,
-  prepareGamePage,
-  refreshGamePageState,
-  resetGamePageTransientUiState,
-  updateGamePagePressedByPos
-} from '../utils/GamePageStateActions'
+import * as gamePageStateActions from '../utils/GamePageStateActions'
 import { shuffleGamePageLetters, submitGamePageWord } from '../utils/GamePageWordActions'
 
 @Component
@@ -96,17 +87,26 @@ export struct GamePage {
   readonly CANVAS_SIZE: number = AppSizes.SCREEN_SIZE
   readonly TOUCH_THRESHOLD: number = GameLayout.TOUCH_THRESHOLD + 4
 
+  private letterPosById(id: number): number[] {
+    for (let i = 0; i < this.letters.length; i++) {
+      if (this.letters[i].id === id) {
+        return [this.letterPos[i * 2] ?? 0, this.letterPos[i * 2 + 1] ?? 0]
+      }
+    }
+    return [0, 0]
+  }
+
   aboutToAppear(): void {
-    prepareGamePage(this)
+    gamePageStateActions.prepareGamePage(this)
   }
 
   aboutToDisappear(): void {
-    leaveGamePage(this)
+    gamePageStateActions.leaveGamePage(this)
   }
 
   onActiveLevelChanged(): void {
-    resetGamePageTransientUiState(this)
-    refreshGamePageState(this)
+    gamePageStateActions.resetGamePageTransientUiState(this)
+    gamePageStateActions.refreshGamePageState(this)
   }
 
   build() {
@@ -175,7 +175,7 @@ export struct GamePage {
         .alignItems(HorizontalAlign.Center)
         .hitTestBehavior(HitTestMode.None)
 
-        ForEach(this.letters, (item: LetterItem, index: number) => {
+        ForEach(this.letters, (item: LetterItem) => {
           Stack() {
             Circle()
               .width(GameLayout.LETTER_SIZE - 5)
@@ -203,7 +203,7 @@ export struct GamePage {
           }
           .width(GameLayout.LETTER_SIZE)
           .height(GameLayout.LETTER_SIZE)
-          .position({ x: this.letterPos[index * 2] ?? 0, y: this.letterPos[index * 2 + 1] ?? 0 })
+          .position({ x: this.letterPosById(item.id)[0], y: this.letterPosById(item.id)[1] })
           .clipShape(new Circle({ width: GameLayout.LETTER_SIZE, height: GameLayout.LETTER_SIZE }))
           .onTouch((event: TouchEvent) => {
             if (event.type === TouchType.Down) {
@@ -369,7 +369,7 @@ export struct GamePage {
                     .fontWeight(FontWeight.Bold)
                 }.onClick(() => {
                   gameState.closeTutorial(true)
-                  refreshGamePageState(this)
+                  gamePageStateActions.refreshGamePageState(this)
                 })
               }
               .backgroundColor(Color.Transparent)
@@ -399,8 +399,8 @@ export struct GamePage {
                 return
               }
               this.ignoreCurrentPan = false
-              updateGamePagePressedByPos(this, finger.localX, finger.localY)
-              onGameTouchStart(this, finger.localX, finger.localY)
+              gamePageStateActions.updateGamePagePressedByPos(this, finger.localX, finger.localY)
+              gamePageStateActions.onGameTouchStart(this, finger.localX, finger.localY)
             }
           })
           .onActionUpdate((event: GestureEvent) => {
@@ -409,8 +409,8 @@ export struct GamePage {
             }
             if (event.fingerList.length > 0) {
               const finger = event.fingerList[0]
-              updateGamePagePressedByPos(this, finger.localX, finger.localY)
-              onGameTouchMove(this, finger.localX, finger.localY)
+              gamePageStateActions.updateGamePagePressedByPos(this, finger.localX, finger.localY)
+              gamePageStateActions.onGameTouchMove(this, finger.localX, finger.localY)
             }
           })
           .onActionEnd(() => {
@@ -419,7 +419,7 @@ export struct GamePage {
               return
             }
             this.pressedLetterId = ''
-            if (onGameTouchEnd(this)) {
+            if (gamePageStateActions.onGameTouchEnd(this)) {
               submitGamePageWord(this)
             }
           })
@@ -440,7 +440,7 @@ export struct GamePage {
     .backgroundColor(AppColors.BACKGROUND_DARK)
     .onBackPressed(() => true)
     .onShown(() => {
-      refreshGamePageState(this)
+      gamePageStateActions.refreshGamePageState(this)
     })
   }
 }

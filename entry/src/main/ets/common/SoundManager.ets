@@ -25,29 +25,10 @@ class SoundManager {
   private ids: Map<string, number> = new Map()
   private activeStreamIds: number[] = []
   private audioManager: audio.AudioManager | null = null
-  private isAudioGuardRegistered: boolean = false
-  private readonly audioInterrupt: audio.AudioInterrupt = {
-    streamUsage: audio.StreamUsage.STREAM_USAGE_GAME,
-    contentType: audio.ContentType.CONTENT_TYPE_SONIFICATION,
-    pauseWhenDucked: true
-  }
-  private readonly interruptCallback = (action: audio.InterruptAction): void => {
-    if (action.type === audio.InterruptType.INTERRUPT_TYPE_BEGIN || this.isStoppingInterruptHint(action.hint)) {
-      this.stopActiveStreams()
-    }
-  }
-  private readonly deviceChangeCallback = (_action: audio.DeviceChangeAction): void => {
-    this.stopActiveStreams()
-  }
-  private readonly streamVolumeCallback = (_event: audio.StreamVolumeEvent): void => {
-    if (this.isMutedOrSilent()) {
-      this.stopActiveStreams()
-    }
-  }
 
   async init(context: common.UIAbilityContext): Promise<void> {
     try {
-      this.registerAudioGuards()
+      this.audioManager = audio.getAudioManager()
       const audioInfo: audio.AudioRendererInfo = {
         usage: audio.StreamUsage.STREAM_USAGE_GAME,
         rendererFlags: 0
@@ -112,7 +93,6 @@ class SoundManager {
 
   release(): void {
     this.stopActiveStreams()
-    this.unregisterAudioGuards()
     if (this.pool) {
       try {
         this.pool.release()
@@ -122,43 +102,6 @@ class SoundManager {
       this.pool = null
     }
     this.ids.clear()
-  }
-
-  private registerAudioGuards(): void {
-    if (this.isAudioGuardRegistered) {
-      return
-    }
-    this.audioManager = audio.getAudioManager()
-    try {
-      this.audioManager.on('interrupt', this.audioInterrupt, this.interruptCallback)
-      this.audioManager.getRoutingManager().on(
-        'deviceChange',
-        audio.DeviceFlag.OUTPUT_DEVICES_FLAG,
-        this.deviceChangeCallback
-      )
-      this.audioManager.getVolumeManager().on(
-        'streamVolumeChange',
-        audio.StreamUsage.STREAM_USAGE_GAME,
-        this.streamVolumeCallback
-      )
-    } catch (e) {
-      console.warn(`[SoundManager] audio guard registration failed: ${JSON.stringify(e)}`)
-    }
-    this.isAudioGuardRegistered = true
-  }
-
-  private unregisterAudioGuards(): void {
-    if (!this.audioManager || !this.isAudioGuardRegistered) {
-      return
-    }
-    try {
-      this.audioManager.off('interrupt', this.audioInterrupt, this.interruptCallback)
-      this.audioManager.getRoutingManager().off('deviceChange', this.deviceChangeCallback)
-      this.audioManager.getVolumeManager().off('streamVolumeChange', this.streamVolumeCallback)
-    } catch (e) {
-      console.warn(`[SoundManager] audio guard removal failed: ${JSON.stringify(e)}`)
-    }
-    this.isAudioGuardRegistered = false
   }
 
   private stopActiveStreams(): void {
@@ -182,7 +125,12 @@ class SoundManager {
 
   private isMutedOrSilent(): boolean {
     if (!this.audioManager) {
-      return false
+      try {
+        this.audioManager = audio.getAudioManager()
+      } catch (e) {
+        console.warn(`[SoundManager] audio manager unavailable: ${JSON.stringify(e)}`)
+        return false
+      }
     }
     try {
       const volumeManager = this.audioManager.getVolumeManager()
@@ -194,12 +142,6 @@ class SoundManager {
       console.warn(`[SoundManager] mute check failed: ${JSON.stringify(e)}`)
       return false
     }
-  }
-
-  private isStoppingInterruptHint(hint: audio.InterruptHint | undefined): boolean {
-    return hint === audio.InterruptHint.INTERRUPT_HINT_PAUSE ||
-      hint === audio.InterruptHint.INTERRUPT_HINT_STOP ||
-      hint === audio.InterruptHint.INTERRUPT_HINT_MUTE
   }
 }
 

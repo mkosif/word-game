@@ -4,11 +4,13 @@ import { LetterItem, WordSlot } from '../viewmodel/GameViewModel'
 import { GamePageHost } from './GamePageHost'
 
 export function isHintFlashCell(host: GamePageHost, cell: CrosswordCell): boolean {
-  return host.hintFlashOn && host.hintFlashKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
+  const hintFlashKeys = host.hintFlashKeys ?? []
+  return host.hintFlashOn && hintFlashKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
 }
 
 export function isRevealedCell(host: GamePageHost, cell: CrosswordCell): boolean {
-  return cell.isLetterRevealed() || host.revealedCellKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
+  const revealedCellKeys = host.revealedCellKeys ?? []
+  return cell.isLetterRevealed() || revealedCellKeys.indexOf(`${cell.row}:${cell.col}`) !== -1
 }
 
 export function crosswordCellKey(cell: CrosswordCell): string {
@@ -146,7 +148,8 @@ export function letterScale(host: GamePageHost, item: LetterItem): number {
 }
 
 function isFeedbackLetter(host: GamePageHost, id: number): boolean {
-  return host.feedbackLetterIds.indexOf(id) !== -1
+  const feedbackLetterIds = host.feedbackLetterIds ?? []
+  return feedbackLetterIds.indexOf(id) !== -1
 }
 
 function isCellInFoundSlot(host: GamePageHost, cell: CrosswordCell): boolean {

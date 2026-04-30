@@ -40,11 +40,9 @@ export struct WinPage {
   @State scoreValue: number = 0
   @State wordsFound: number = 0
   @State wordsTotal: number = 0
-  @State bonusFound: number = 0
-  @State bonusTotal: number = 0
   @State completionTime: string = '--'
-  @State fastestTime: string = '--'
   private levelScore: number = 0
+  private starScaleValues: number[] = [0, 0, 0, 0, 0]
   private mainStars: number[] = [1, 2, 3]
   private bonusStars: number[] = [4, 5]
   private confettiSettings: RenderingContextSettings = new RenderingContextSettings(true)
@@ -58,14 +56,11 @@ export struct WinPage {
     this.scoreValue = Math.round(this.levelScore)
     this.wordsFound = gameState.foundWords.length
     this.wordsTotal = gameState.wordSlots.length
-    this.bonusFound = gameState.bonusWordsFound.length
-    this.bonusTotal = gameState.currentLevel && gameState.currentLevel.bonusWords ?
-      gameState.currentLevel.bonusWords.length : 0
     this.completionTime = this.formatDuration(StatsStore.getLastCompletedLevelMs())
-    const fastest = StatsStore.getFastest()
-    this.fastestTime = fastest && fastest.levelId === this.currentLevel ? this.formatDuration(fastest.durationMs) : '--'
     this.earnedStars = this.calcStars()
     this.bgColor = difficultyBgColor(gameState.currentLevel?.difficulty ?? 'medium')
+    this.starScaleValues = [0, 0, 0, 0, 0]
+    this.starScales = this.starScaleValues
     this.startStarReveal()
     this.startConfetti()
   }
@@ -78,29 +73,26 @@ export struct WinPage {
       const idx = i
 
       setTimeout(() => {
-        const s1 = this.starScales.slice()
-        s1[idx] = 1.42
-        ui.animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
-          this.starScales = s1
-        })
+        this.animateStarScale(idx, 1.42, 120, Curve.EaseOut, ui)
 
         setTimeout(() => {
-          const s2 = this.starScales.slice()
-          s2[idx] = 0.94
-          ui.animateTo({ duration: 80, curve: Curve.EaseIn }, () => {
-            this.starScales = s2
-          })
+          this.animateStarScale(idx, 0.94, 80, Curve.EaseIn, ui)
 
           setTimeout(() => {
-            const s3 = this.starScales.slice()
-            s3[idx] = 1.0
-            ui.animateTo({ duration: 120, curve: Curve.EaseOut }, () => {
-              this.starScales = s3
-            })
+            this.animateStarScale(idx, 1.0, 120, Curve.EaseOut, ui)
           }, 90)
         }, 130)
       }, 160 + idx * 170)
     }
+  }
+
+  private animateStarScale(index: number, scale: number, duration: number, curve: Curve, ui: UIContext): void {
+    const nextScales = this.starScaleValues.slice()
+    nextScales[index] = scale
+    this.starScaleValues = nextScales
+    ui.animateTo({ duration, curve }, () => {
+      this.starScales = nextScales
+    })
   }
 
   aboutToDisappear(): void {
